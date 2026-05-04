@@ -34,6 +34,12 @@ export type {
 export { replay } from "./replay.ts";
 export type { ReplayDoc, ActionEvent, ReplayError, Recorder, Player } from "./replay.ts";
 
+export { snapshotter, snapshot_schema } from "./snapshot.ts";
+export type { Snapshot, SnapshotMeta, EntitySnap, Snapshotter, TakeOpts, RestoreOpts } from "./snapshot.ts";
+
+export { mem, file, store, save, load } from "./storage/index.ts";
+export type { Store, Slot, SaveHandle, SaveSlot, StoreError, MemOpts, FileOpts, StoreOpts, SaveError } from "./storage/index.ts";
+
 export { debug_noop } from "./debug-stub.ts";
 export type { Debug } from "./debug-stub.ts";
 

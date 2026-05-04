@@ -29,10 +29,12 @@ export const internal = Symbol("forge.world.internal");
 export type WorldInternal = {
 	components_of: (id: Id) => readonly Component<any>[];
 	stores: () => ReadonlyMap<symbol, ReadonlyMap<Id, unknown>>;
+	clear: () => void;
 };
 
 export type World = {
 	spawn: (...components: SpawnArgs) => Id;
+	spawn_at: (id: Id, ...components: SpawnArgs) => void;
 	despawn: (id: Id) => Result<void, EngineError>;
 	has: (id: Id, c: Component<any>) => boolean;
 	get: <T>(id: Id, c: Component<T>) => Result<T, EngineError>;
@@ -70,6 +72,14 @@ export const world = (): World => {
 			get_store(c).set(id, data);
 		}
 		return id;
+	};
+
+	const spawn_at = (id: Id, ...components: SpawnArgs): void => {
+		entities.add(id);
+		for (const [c, data] of components) {
+			get_store(c).set(id, data);
+		}
+		if ((id as unknown as number) >= next_id) next_id = (id as unknown as number) + 1;
 	};
 
 	const despawn = (id: Id): Result<void, EngineError> => {
@@ -149,6 +159,7 @@ export const world = (): World => {
 
 	return {
 		spawn,
+		spawn_at,
 		despawn,
 		has,
 		get: get_data,
@@ -168,6 +179,11 @@ export const world = (): World => {
 				return out;
 			},
 			stores: () => stores as unknown as ReadonlyMap<symbol, ReadonlyMap<Id, unknown>>,
+			clear: () => {
+				entities.clear();
+				for (const store of stores.values()) store.clear();
+				next_id = 1;
+			},
 		},
 	};
 };

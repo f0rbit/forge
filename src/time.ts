@@ -5,6 +5,7 @@ export type Time = {
 	readonly alpha: number;
 	scale: number;
 	advance: (real_dt: number) => number;
+	restore: (tick: number) => void;
 };
 
 export const time = (opts?: { fixed_dt?: number }): Time => {
@@ -35,6 +36,11 @@ export const time = (opts?: { fixed_dt?: number }): Time => {
 			}
 			state.alpha = state.accumulator / fixed_dt;
 			return consumed;
+		},
+		restore: tick => {
+			state.tick = tick;
+			state.accumulator = 0;
+			state.alpha = 0;
 		},
 	};
 	return api;

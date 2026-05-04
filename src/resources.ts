@@ -13,6 +13,8 @@ export const resource = <T>(name: string): ResKey<T> => {
 
 export const resource_name = (k: ResKey<any>): string => name_table.get(k) ?? k.description ?? "<unnamed>";
 
+export const is_named_resource = (k: ResKey<any>): boolean => name_table.has(k);
+
 export type Resources = {
 	set: <T>(k: ResKey<T>, v: T) => void;
 	get: <T>(k: ResKey<T>) => Result<T, EngineError>;
