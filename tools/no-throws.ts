@@ -15,7 +15,7 @@ const rules: readonly Rule[] = [
 	{ name: "setInterval", pattern: /\bsetInterval\s*\(/, allow_pixi: true },
 	{ name: "throw", pattern: /^\s*throw\s+/m, allow_pixi: true },
 	{ name: "try block", pattern: /\btry\s*\{/, allow_pixi: true },
-	{ name: "pixi import outside src/pixi", pattern: /from\s+["'](pixi\.js|@pixi\/[^"']+)["']/, allow_pixi: false },
+	{ name: "pixi import outside src/pixi", pattern: /from\s+["'](pixi\.js|@pixi\/[^"']+)["']/, allow_pixi: true },
 ];
 
 const walk = function* (dir: string): Generator<string> {
