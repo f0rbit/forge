@@ -1,0 +1,74 @@
+import { describe, expect, test } from "bun:test";
+import { world, component } from "../src/index.ts";
+
+describe("query", () => {
+	const pos = component<{ x: number; y: number }>("pos");
+	const vel = component<{ dx: number; dy: number }>("vel");
+	const dead = component<true>("dead");
+
+	test("yields entities that have all required components", () => {
+		const w = world();
+		const moving = w.spawn([pos, { x: 0, y: 0 }], [vel, { dx: 1, dy: 0 }]);
+		w.spawn([pos, { x: 5, y: 5 }]);
+		w.spawn([vel, { dx: 0, dy: 1 }]);
+
+		const ids: number[] = [];
+		w.query([pos, vel] as const).each(id => ids.push(id));
+		expect(ids).toEqual([moving]);
+	});
+
+	test("collect returns tuple [id, ...data]", () => {
+		const w = world();
+		w.spawn([pos, { x: 1, y: 2 }], [vel, { dx: 3, dy: 4 }]);
+		const all = w.query([pos, vel] as const).collect();
+		expect(all).toHaveLength(1);
+		const [, p, v] = all[0]!;
+		expect(p).toEqual({ x: 1, y: 2 });
+		expect(v).toEqual({ dx: 3, dy: 4 });
+	});
+
+	test("without filter excludes entities that have the named component", () => {
+		const w = world();
+		const alive = w.spawn([pos, { x: 0, y: 0 }], [vel, { dx: 1, dy: 0 }]);
+		const corpse = w.spawn([pos, { x: 5, y: 5 }], [vel, { dx: 0, dy: 0 }], [dead, true]);
+
+		const ids = w
+			.query([pos, vel] as const, { without: [dead] })
+			.collect()
+			.map(([id]) => id);
+		expect(ids).toContain(alive);
+		expect(ids).not.toContain(corpse);
+	});
+
+	test("returns empty when no entities match", () => {
+		const w = world();
+		w.spawn([pos, { x: 0, y: 0 }]);
+		expect(w.query([pos, vel] as const).collect()).toEqual([]);
+	});
+
+	test("returns empty when a required component has no store", () => {
+		const w = world();
+		w.spawn([pos, { x: 0, y: 0 }]);
+		expect(w.query([pos, vel] as const).collect()).toEqual([]);
+	});
+
+	test("each is a generator and lazy — exiting iteration early is safe", () => {
+		const w = world();
+		for (let i = 0; i < 5; i++) w.spawn([pos, { x: i, y: 0 }]);
+		let seen = 0;
+		for (const _ of w.query([pos] as const)) {
+			seen++;
+			if (seen === 2) break;
+		}
+		expect(seen).toBe(2);
+	});
+
+	test("picks the smallest store as the primary iterator", () => {
+		const w = world();
+		for (let i = 0; i < 100; i++) w.spawn([pos, { x: 0, y: 0 }]);
+		const target = w.spawn([pos, { x: 99, y: 99 }], [vel, { dx: 1, dy: 1 }]);
+		const all = w.query([pos, vel] as const).collect();
+		expect(all).toHaveLength(1);
+		expect(all[0]![0]).toBe(target);
+	});
+});
