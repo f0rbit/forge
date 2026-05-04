@@ -13,4 +13,7 @@ export type { StoreOpts } from "./store.ts";
 export { save, load } from "./save.ts";
 export type { SaveError } from "./save.ts";
 
+export { engine_store, bindings_schema, prefs_schema, default_prefs } from "./engine-store.ts";
+export type { EngineStore, EngineStoreOpts, Prefs } from "./engine-store.ts";
+
 export type { Store, Slot, SaveHandle, SaveSlot, StoreError } from "./types.ts";

@@ -7,8 +7,9 @@ export type Ctx = {
 	rng: import("./rng.ts").Rng;
 	res: import("./resources.ts").Resources;
 	input: import("./input/input.ts").Input;
-	debug: import("./debug-stub.ts").Debug;
-	palette: import("./palette-stub.ts").Palette;
+	debug: import("./debug/debug.ts").Debug;
+	palette: import("./palette/palette.ts").Palette;
+	store?: import("./storage/engine-store.ts").EngineStore;
 };
 
 export type System = (w: World, ctx: Ctx) => void;
@@ -65,6 +66,7 @@ export const schedule = (): Schedule => {
 			for (const stage of default_order) {
 				if (stage === "startup") continue;
 				api.run(stage, w, ctx);
+				if (stage === "render") ctx.debug.frame();
 			}
 		},
 		stages: () => {

@@ -37,13 +37,29 @@ export type { ReplayDoc, ActionEvent, ReplayError, Recorder, Player } from "./re
 export { snapshotter, snapshot_schema } from "./snapshot.ts";
 export type { Snapshot, SnapshotMeta, EntitySnap, Snapshotter, TakeOpts, RestoreOpts } from "./snapshot.ts";
 
-export { mem, file, store, save, load } from "./storage/index.ts";
-export type { Store, Slot, SaveHandle, SaveSlot, StoreError, MemOpts, FileOpts, StoreOpts, SaveError } from "./storage/index.ts";
+export { mem, file, store, save, load, engine_store, bindings_schema, prefs_schema, default_prefs } from "./storage/index.ts";
+export type {
+	Store,
+	Slot,
+	SaveHandle,
+	SaveSlot,
+	StoreError,
+	MemOpts,
+	FileOpts,
+	StoreOpts,
+	SaveError,
+	EngineStore,
+	EngineStoreOpts,
+	Prefs,
+} from "./storage/index.ts";
 
-export { debug_noop } from "./debug-stub.ts";
-export type { Debug } from "./debug-stub.ts";
+export { debug, debug_noop, is_dev } from "./debug/index.ts";
+export type { Debug, DebugOpts, DebugCmd, DebugStats, Pin, PinKind, Color, Inspection, ComponentInspection } from "./debug/index.ts";
 
-export { palette_noop } from "./palette-stub.ts";
-export type { Palette } from "./palette-stub.ts";
+export { palette, palette_noop, builtins, tokenise, parse_line, fuzzy_score, fuzzy_rank } from "./palette/index.ts";
+export type { Palette, PaletteOpts, Command, CommandError, CommandRunner, SearchHit, BuiltinDeps, ParsedLine } from "./palette/index.ts";
+
+export type { Vec2 } from "./math.ts";
+export { vec2 } from "./math.ts";
 
 export type { EngineError } from "./errors.ts";
