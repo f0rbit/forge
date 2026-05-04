@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { schedule, world, time, rng, resources, type Ctx, type System } from "../src/index.ts";
-
-const make_ctx = (): Ctx => ({ time: time(), rng: rng(1), res: resources() });
+import { schedule, world, type System } from "../src/index.ts";
+import { make_ctx } from "./helpers/ctx.ts";
 
 describe("schedule", () => {
 	test("add(stage, system) is chainable and runs systems in insertion order", () => {

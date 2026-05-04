@@ -3,7 +3,6 @@ import {
 	world,
 	schedule,
 	time,
-	rng,
 	resources,
 	anim,
 	anim_c,
@@ -11,15 +10,15 @@ import {
 	anim_events,
 	type AtlasRegistry,
 	type AnimEventBuffer,
-	type Ctx,
 } from "../src/index.ts";
+import { make_ctx } from "./helpers/ctx.ts";
 
 const make_setup = () => {
 	const w = world();
 	const sch = schedule();
 	const t = time();
 	const res = resources();
-	const ctx: Ctx = { time: t, rng: rng(1), res };
+	const ctx = make_ctx({ time: t, res });
 	const registry: AtlasRegistry = {
 		"test-atlas": {
 			walk: [

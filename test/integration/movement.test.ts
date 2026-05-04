@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { world, schedule, time, rng, resources, component, type Ctx, type System, type World } from "../../src/index.ts";
+import { world, schedule, time, component, type System, type World } from "../../src/index.ts";
+import { make_ctx } from "../helpers/ctx.ts";
 
 const pos = component<{ x: number; y: number }>("pos");
 const vel = component<{ dx: number; dy: number }>("vel");
@@ -23,7 +24,7 @@ const run_60_ticks = () => {
 	const w = world();
 	const sch = schedule();
 	const t = time();
-	const ctx: Ctx = { time: t, rng: rng(1), res: resources() };
+	const ctx = make_ctx({ time: t });
 
 	sch.add("update", movement, "movement");
 

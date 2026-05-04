@@ -18,4 +18,26 @@ export type { Resources, ResKey } from "./resources.ts";
 export { anim, anim_c, atlas_registry, anim_events } from "./anim.ts";
 export type { Anim, AnimData, AnimEvent, AnimEventBuffer, AtlasFrame, AtlasRegistry, AtlasSequences } from "./anim.ts";
 
+export { input, noop_source, scripted, ticked, empty_bindings, merge_bindings } from "./input/index.ts";
+export type {
+	Input,
+	ActionState,
+	RawInput,
+	InputSource,
+	PadIndex,
+	Bindings,
+	Trigger,
+	AxisBinding,
+	Action,
+} from "./input/index.ts";
+
+export { replay } from "./replay.ts";
+export type { ReplayDoc, ActionEvent, ReplayError, Recorder, Player } from "./replay.ts";
+
+export { debug_noop } from "./debug-stub.ts";
+export type { Debug } from "./debug-stub.ts";
+
+export { palette_noop } from "./palette-stub.ts";
+export type { Palette } from "./palette-stub.ts";
+
 export type { EngineError } from "./errors.ts";

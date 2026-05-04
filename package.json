@@ -39,7 +39,8 @@
     "build": "bun run clean && rolldown -c && tsc -p tsconfig.build.json",
     "build:watch": "rolldown -c --watch",
     "typecheck": "tsc --noEmit",
-    "test": "bun test"
+    "test": "bun test",
+    "check:determinism": "bun tools/no-throws.ts"
   },
   "dependencies": {
     "@f0rbit/corpus": "^0.3.5",

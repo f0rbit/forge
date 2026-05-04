@@ -6,6 +6,9 @@ export type Ctx = {
 	time: import("./time.ts").Time;
 	rng: import("./rng.ts").Rng;
 	res: import("./resources.ts").Resources;
+	input: import("./input/input.ts").Input;
+	debug: import("./debug-stub.ts").Debug;
+	palette: import("./palette-stub.ts").Palette;
 };
 
 export type System = (w: World, ctx: Ctx) => void;
@@ -58,6 +61,7 @@ export const schedule = (): Schedule => {
 				api.run("startup", w, ctx);
 				startup_done = true;
 			}
+			ctx.input.advance(w, ctx);
 			for (const stage of default_order) {
 				if (stage === "startup") continue;
 				api.run(stage, w, ctx);
