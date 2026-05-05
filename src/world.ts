@@ -5,7 +5,7 @@ export type Id = number & { readonly __id: unique symbol };
 
 export type Component<T> = { readonly key: symbol; readonly name: string; readonly __t?: T };
 
-export const component = <T>(name: string): Component<T> => ({ key: Symbol(name), name });
+export const component = <T>(name: string): Component<T> => ({ key: Symbol.for(`forge.component:${name}`), name });
 
 export type ComponentTuple<C extends readonly Component<any>[]> = {
 	[K in keyof C]: C[K] extends Component<infer T> ? T : never;

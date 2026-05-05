@@ -1,5 +1,15 @@
 # @f0rbit/forge
 
+## 0.1.2
+
+### Patch Changes
+
+- Fix cross-bundle component / resource identity. `component(name)` and `resource(name)` now use `Symbol.for(...)` (global symbol registry) instead of `Symbol(...)`, so component descriptors with the same name share identity across bundles.
+
+  Previously, when a consumer imported `pos_c` from `@f0rbit/forge` and forge's pixi subpath bundle (`@f0rbit/forge/pixi`) had its own copy of `pos_c`, the two were different `Symbol` instances. World stores keyed off `Component.key` couldn't find entities the consumer had spawned with what looked like the same component, so `sprite_sync_system` (and any internal system relying on shared component keys) silently saw zero matches. The result was a black screen — sprites never got created.
+
+  Behavioural note: `component("foo") === component("foo")` is now true (their `key` symbols match). This matches the conceptual contract — components are identified by name — and is required for correct cross-subpath behaviour.
+
 ## 0.1.0
 
 ### Minor Changes

@@ -6,7 +6,7 @@ export type ResKey<T> = symbol & { readonly __res?: T };
 const name_table = new Map<symbol, string>();
 
 export const resource = <T>(name: string): ResKey<T> => {
-	const key = Symbol(name) as ResKey<T>;
+	const key = Symbol.for(`forge.resource:${name}`) as ResKey<T>;
 	name_table.set(key, name);
 	return key;
 };
