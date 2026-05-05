@@ -4,6 +4,14 @@
   "description": "Functional, composition-first TypeScript game engine with PIXI v8 renderer adapter, deterministic ECS, action-stream replays, and corpus-backed persistence.",
   "license": "MIT",
   "author": "Tom",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/f0rbit/forge.git"
+  },
+  "homepage": "https://github.com/f0rbit/forge#readme",
+  "bugs": {
+    "url": "https://github.com/f0rbit/forge/issues"
+  },
   "type": "module",
   "sideEffects": false,
   "files": [
