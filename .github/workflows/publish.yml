@@ -52,17 +52,16 @@ jobs:
       - name: Build
         run: bun run build
 
-      - name: Publish dry-run
-        run: npm publish --dry-run
-
-      - name: Publish to npm (if version changed)
+      - name: Conditional publish
         run: |
           local_version=$(node -p "require('./package.json').version")
           published_version=$(npm view @f0rbit/forge version 2>/dev/null || echo "none")
           echo "local: $local_version"
           echo "published: $published_version"
           if [ "$local_version" = "$published_version" ]; then
-            echo "version $local_version already on npm; skipping"
+            echo "version $local_version already on npm; nothing to publish"
             exit 0
           fi
+          echo "publishing $local_version (was $published_version)"
+          npm publish --dry-run
           npm publish --access public
