@@ -1,5 +1,19 @@
 # @f0rbit/forge
 
+## 0.1.3
+
+### Patch Changes
+
+- Pixel-perfect dynamic viewport: PixelatedPope-style two-stage rendering, new camera modes, and FPS HUD fix.
+
+  **Breaking** — `BootOpts.camera` shape changed and the camera modes were rewritten. The old `{ mode: "fit" | "fill" | "fixed", width, height, pos, zoom }` shape is replaced with `{ design: { width, height }, mode: "letterbox" | "extend" | "extend-x" | "extend-y" | "fit", min?, max?, pixel_perfect?, smoothing? }`. `Camera.apply()` is removed; layout now happens through the render system. World coordinates are now design coordinates (no per-frame container scaling). New `BootOpts.window` field carries the host window size.
+
+  **Feature** — pixel-perfect dynamic viewport with two-stage rendering. Each frame the world container is rendered into a `RenderTexture` sized to the design viewport (or the extended viewport in `extend*` modes), and a stage-level `Sprite` rescales that surface to the host window with integer scale and centering offset. Texture scaling defaults to `nearest`; flip with `smoothing: true`.
+
+  **Feature** — `extend`, `extend-x`, `extend-y` modes show more world on larger windows. `min` floors the design viewport so the game never sees less than authored; `max` caps the extension to bound visible world. `letterbox` keeps the design viewport identical to authored size with black bars around it. `fit` is the only mode that uses fractional scale.
+
+  **Fix** — debug HUD's `fps` field used to read back its own stale value (always `0.0`). The render system now computes a real-time, smoothed FPS via `performance.now()` (allowed inside `src/pixi/`) and writes it into `debug.stats().fps` each frame. The calculation is gated on `__DEV__`; production builds skip it entirely.
+
 ## 0.1.2
 
 ### Patch Changes

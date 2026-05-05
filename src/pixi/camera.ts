@@ -1,118 +1,119 @@
-import type { Container } from "pixi.js";
-import type { Vec2 } from "../math.ts";
-
-export type CameraMode = "fit" | "fill" | "fixed";
+export type CameraMode = "letterbox" | "extend" | "extend-x" | "extend-y" | "fit";
 
 export type CameraOpts = {
-	mode?: CameraMode;
-	width: number;
-	height: number;
-	pos?: Vec2;
-	zoom?: number;
+	design: { width: number; height: number };
+	mode: CameraMode;
+	min?: { width: number; height: number };
+	max?: { width: number; height: number };
+	pixel_perfect?: boolean;
+	smoothing?: boolean;
+};
+
+export type Viewport = {
+	scale: number;
+	view: { width: number; height: number };
+	offset: { x: number; y: number };
 };
 
 export type Camera = {
-	readonly mode: CameraMode;
-	readonly logical_width: number;
-	readonly logical_height: number;
-	pos: Vec2;
-	zoom: number;
-	resize: (window_w: number, window_h: number) => void;
-	apply: (root: Container) => void;
-	world_to_screen: (p: Vec2) => Vec2;
-	screen_to_world: (p: Vec2) => Vec2;
-	state: () => { scale: number; offset_x: number; offset_y: number; window_w: number; window_h: number };
+	readonly opts: CameraOpts;
+	viewport: () => Viewport;
+	resize: (window_w: number, window_h: number) => Viewport;
+	world_to_screen: (p: { x: number; y: number }) => { x: number; y: number };
+	screen_to_world: (p: { x: number; y: number }) => { x: number; y: number };
 };
 
-const compute_fit = (lw: number, lh: number, ww: number, wh: number): { scale: number; offset_x: number; offset_y: number } => {
-	const sx = ww / lw;
-	const sy = wh / lh;
-	const scale = Math.min(sx, sy);
-	const offset_x = (ww - lw * scale) / 2;
-	const offset_y = (wh - lh * scale) / 2;
-	return { scale, offset_x, offset_y };
+const DEV = (() => {
+	const g = globalThis as { __DEV__?: boolean };
+	if (typeof g.__DEV__ === "boolean") return g.__DEV__;
+	const proc = (globalThis as { process?: { env?: { NODE_ENV?: string } } }).process;
+	return proc?.env?.NODE_ENV !== "production";
+})();
+
+const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
+
+const compute_scale = (design_w: number, design_h: number, ww: number, wh: number, pixel_perfect: boolean): number => {
+	const sx = ww / design_w;
+	const sy = wh / design_h;
+	const raw = Math.min(sx, sy);
+	if (!pixel_perfect) return raw;
+	if (raw < 1) {
+		if (DEV) {
+			const console_obj = (globalThis as { console?: { warn: (msg: string) => void } }).console;
+			console_obj?.warn?.(`forge.camera: window ${ww}x${wh} smaller than design ${design_w}x${design_h}; falling back to fractional scale ${raw.toFixed(3)} (pixel_perfect ignored)`);
+		}
+		return raw;
+	}
+	return Math.max(1, Math.floor(raw));
 };
 
-const compute_fill = (lw: number, lh: number, ww: number, wh: number): { scale: number; offset_x: number; offset_y: number } => {
-	const sx = ww / lw;
-	const sy = wh / lh;
-	const scale = Math.max(sx, sy);
-	const offset_x = (ww - lw * scale) / 2;
-	const offset_y = (wh - lh * scale) / 2;
-	return { scale, offset_x, offset_y };
-};
+const compute_viewport = (opts: CameraOpts, ww: number, wh: number): Viewport => {
+	const design = opts.design;
+	const pixel_perfect = opts.pixel_perfect ?? true;
 
-const compute_fixed = (): { scale: number; offset_x: number; offset_y: number } => ({ scale: 1, offset_x: 0, offset_y: 0 });
+	if (opts.mode === "fit") {
+		const scale = Math.min(ww / design.width, wh / design.height);
+		const offset_x = (ww - design.width * scale) / 2;
+		const offset_y = (wh - design.height * scale) / 2;
+		return {
+			scale,
+			view: { width: design.width, height: design.height },
+			offset: { x: offset_x, y: offset_y },
+		};
+	}
 
-export const camera = (opts: CameraOpts): Camera => {
-	const mode: CameraMode = opts.mode ?? "fit";
-	const lw = opts.width;
-	const lh = opts.height;
-	const state = {
-		scale: 1,
-		offset_x: 0,
-		offset_y: 0,
-		window_w: lw,
-		window_h: lh,
-	};
-	const view = {
-		pos: opts.pos ?? { x: 0, y: 0 },
-		zoom: opts.zoom ?? 1,
-	};
+	const scale = compute_scale(design.width, design.height, ww, wh, pixel_perfect);
 
-	const recompute = (): void => {
-		const result = mode === "fit"
-			? compute_fit(lw, lh, state.window_w, state.window_h)
-			: mode === "fill"
-				? compute_fill(lw, lh, state.window_w, state.window_h)
-				: compute_fixed();
-		state.scale = result.scale;
-		state.offset_x = result.offset_x;
-		state.offset_y = result.offset_y;
-	};
+	if (opts.mode === "letterbox") {
+		const offset_x = (ww - design.width * scale) / 2;
+		const offset_y = (wh - design.height * scale) / 2;
+		return {
+			scale,
+			view: { width: design.width, height: design.height },
+			offset: { x: offset_x, y: offset_y },
+		};
+	}
 
-	recompute();
+	const min = opts.min;
+	const max = opts.max;
+
+	const extend_x = opts.mode === "extend" || opts.mode === "extend-x";
+	const extend_y = opts.mode === "extend" || opts.mode === "extend-y";
+
+	const view_w_raw = extend_x ? Math.round(ww / scale) : design.width;
+	const view_h_raw = extend_y ? Math.round(wh / scale) : design.height;
+
+	const view_w = clamp(view_w_raw, min?.width ?? -Infinity, max?.width ?? Infinity);
+	const view_h = clamp(view_h_raw, min?.height ?? -Infinity, max?.height ?? Infinity);
+
+	const offset_x = (ww - view_w * scale) / 2;
+	const offset_y = (wh - view_h * scale) / 2;
 
 	return {
-		mode,
-		logical_width: lw,
-		logical_height: lh,
-		get pos() {
-			return view.pos;
-		},
-		set pos(v: Vec2) {
-			view.pos = v;
-		},
-		get zoom() {
-			return view.zoom;
-		},
-		set zoom(z: number) {
-			view.zoom = z;
-		},
-		resize: (ww, wh) => {
-			state.window_w = ww;
-			state.window_h = wh;
-			recompute();
-		},
-		apply: root => {
-			const total = state.scale * view.zoom;
-			root.position.set(state.offset_x - view.pos.x * total, state.offset_y - view.pos.y * total);
-			root.scale.set(total);
-		},
-		world_to_screen: p => {
-			const total = state.scale * view.zoom;
-			return {
-				x: state.offset_x + (p.x - view.pos.x) * total,
-				y: state.offset_y + (p.y - view.pos.y) * total,
-			};
-		},
-		screen_to_world: p => {
-			const total = state.scale * view.zoom;
-			return {
-				x: (p.x - state.offset_x) / total + view.pos.x,
-				y: (p.y - state.offset_y) / total + view.pos.y,
-			};
-		},
-		state: () => ({ ...state }),
+		scale,
+		view: { width: view_w, height: view_h },
+		offset: { x: offset_x, y: offset_y },
 	};
+};
+
+export const camera = (opts: CameraOpts): Camera => {
+	let current: Viewport = compute_viewport(opts, opts.design.width, opts.design.height);
+
+	const api: Camera = {
+		opts,
+		viewport: () => current,
+		resize: (ww, wh) => {
+			current = compute_viewport(opts, ww, wh);
+			return current;
+		},
+		world_to_screen: p => ({
+			x: current.offset.x + p.x * current.scale,
+			y: current.offset.y + p.y * current.scale,
+		}),
+		screen_to_world: p => ({
+			x: (p.x - current.offset.x) / current.scale,
+			y: (p.y - current.offset.y) / current.scale,
+		}),
+	};
+	return api;
 };

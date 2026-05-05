@@ -154,7 +154,7 @@ export const debug_pixi = (opts: DebugPixiOpts): System => {
 			t.position.set(0, 0);
 		}
 
-		ctx.debug.tick_stats(w, ctx.time, ctx.debug.stats().fps);
+		ctx.debug.tick_stats(w, ctx.time);
 		if (hud_text) {
 			hud_text.text = format_hud(ctx.debug.stats(), ctx.time.scale);
 		}

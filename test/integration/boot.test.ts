@@ -19,7 +19,7 @@ describe("boot-equivalent smoke test", () => {
 		const a = assets({ fixed_dt: t.fixed_dt, register_default: true });
 		res.set(atlas_registry, a.registry());
 
-		const cam = camera({ mode: "fit", width: 320, height: 180 });
+		const cam = camera({ design: { width: 320, height: 180 }, mode: "letterbox" });
 		cam.resize(640, 360);
 
 		const world_container = new Container();

@@ -1,7 +1,8 @@
 import { ok, err, type Result } from "@f0rbit/corpus";
-import { Application, Container } from "pixi.js";
+import { Application, Container, RenderTexture, Sprite, TextureSource } from "pixi.js";
 import type { System } from "../schedule.ts";
-import type { Camera } from "./camera.ts";
+import type { Camera, Viewport } from "./camera.ts";
+import { is_dev } from "../debug/debug.ts";
 
 export type RenderError = { kind: "init_failed"; cause: string } | { kind: "no_canvas" };
 
@@ -10,21 +11,19 @@ export type RenderState = {
 	world: Container;
 	debug_overlay: Container;
 	palette_overlay: Container;
-	camera: Camera | null;
-	set_camera: (cam: Camera) => void;
+	camera: Camera;
 	canvas: () => HTMLCanvasElement | null;
 	dispose: () => void;
 	stats: { last_render_us: number; fps: number };
 	render_system: () => System;
 	resize: (w: number, h: number) => void;
+	viewport: () => Viewport;
 };
 
 export type RenderOpts = {
-	width: number;
-	height: number;
+	camera: Camera;
 	background?: number | string;
 	mount?: HTMLElement | null;
-	camera?: Camera;
 	now?: () => number;
 };
 
@@ -35,12 +34,30 @@ const make_now = (opts?: { now?: () => number }): (() => number) => {
 	return () => 0;
 };
 
+const apply_smoothing = (texture: { source?: { scaleMode?: string } } | null, smoothing: boolean): void => {
+	if (!texture || !texture.source) return;
+	texture.source.scaleMode = smoothing ? "linear" : "nearest";
+};
+
 export const make_render = async (opts: RenderOpts): Promise<Result<RenderState, RenderError>> => {
+	const cam = opts.camera;
+	const smoothing = cam.opts.smoothing ?? false;
+	try {
+		const def = (TextureSource as unknown as { defaultOptions?: { scaleMode?: string } }).defaultOptions;
+		if (def) def.scaleMode = smoothing ? "linear" : "nearest";
+	} catch {
+		/* no-op */
+	}
+
+	const initial = cam.viewport();
+	const initial_w = initial.view.width * initial.scale + initial.offset.x * 2;
+	const initial_h = initial.view.height * initial.scale + initial.offset.y * 2;
+
 	const app = new Application();
 	try {
 		await app.init({
-			width: opts.width,
-			height: opts.height,
+			width: Math.max(1, Math.round(initial_w)),
+			height: Math.max(1, Math.round(initial_h)),
 			background: opts.background ?? 0x101820,
 			autoStart: false,
 		});
@@ -59,7 +76,30 @@ export const make_render = async (opts: RenderOpts): Promise<Result<RenderState,
 	palette_overlay.label = "forge.palette";
 	palette_overlay.visible = false;
 
-	app.stage.addChild(world);
+	let render_texture: RenderTexture;
+	try {
+		render_texture = RenderTexture.create({
+			width: Math.max(1, initial.view.width),
+			height: Math.max(1, initial.view.height),
+			dynamic: true,
+		});
+	} catch (e) {
+		try {
+			app.destroy(true, { children: true });
+		} catch {
+			/* no-op */
+		}
+		return err({ kind: "init_failed", cause: (e as Error).message ?? String(e) });
+	}
+
+	apply_smoothing(render_texture as unknown as { source?: { scaleMode?: string } }, smoothing);
+
+	const surface_sprite = new Sprite(render_texture);
+	surface_sprite.label = "forge.surface";
+	surface_sprite.scale.set(initial.scale, initial.scale);
+	surface_sprite.position.set(initial.offset.x, initial.offset.y);
+
+	app.stage.addChild(surface_sprite);
 	app.stage.addChild(debug_overlay);
 	app.stage.addChild(palette_overlay);
 
@@ -70,58 +110,86 @@ export const make_render = async (opts: RenderOpts): Promise<Result<RenderState,
 
 	const now = make_now(opts);
 	const stats = { last_render_us: 0, fps: 0 };
-	let last_t = now();
-	let frame_count = 0;
-	let fps_acc = 0;
+	const dev = is_dev();
+
+	let last_t = 0;
+	let last_t_set = false;
+	let fps_smoothed = 0;
+	const FPS_SMOOTHING = 0.1;
+
+	const update_fps = (): void => {
+		if (!dev) return;
+		const t = now();
+		if (!last_t_set) {
+			last_t = t;
+			last_t_set = true;
+			return;
+		}
+		const dt_ms = t - last_t;
+		last_t = t;
+		if (dt_ms <= 0) return;
+		const inst_fps = 1000 / dt_ms;
+		if (fps_smoothed === 0) {
+			fps_smoothed = inst_fps;
+		} else {
+			fps_smoothed = fps_smoothed * (1 - FPS_SMOOTHING) + inst_fps * FPS_SMOOTHING;
+		}
+		stats.fps = fps_smoothed;
+	};
+
+	const apply_viewport = (vp: Viewport): void => {
+		const need_w = Math.max(1, vp.view.width);
+		const need_h = Math.max(1, vp.view.height);
+		if (render_texture.width !== need_w || render_texture.height !== need_h) {
+			render_texture.resize(need_w, need_h);
+			apply_smoothing(render_texture as unknown as { source?: { scaleMode?: string } }, smoothing);
+		}
+		surface_sprite.scale.set(vp.scale, vp.scale);
+		surface_sprite.position.set(vp.offset.x, vp.offset.y);
+	};
+
+	apply_viewport(initial);
 
 	const state: RenderState = {
 		app,
 		world,
 		debug_overlay,
 		palette_overlay,
-		camera: opts.camera ?? null,
-		set_camera: cam => {
-			state.camera = cam;
-			cam.apply(world);
-		},
+		camera: cam,
 		canvas: () => (app as unknown as { canvas?: HTMLCanvasElement | null }).canvas ?? null,
 		stats,
+		viewport: () => cam.viewport(),
 		resize: (w, h) => {
+			const vp = cam.resize(w, h);
 			(app.renderer as unknown as { resize?: (w: number, h: number) => void }).resize?.(w, h);
-			if (state.camera) {
-				state.camera.resize(w, h);
-				state.camera.apply(world);
-			}
+			apply_viewport(vp);
 		},
 		dispose: () => {
+			try {
+				render_texture.destroy(true);
+			} catch {
+				/* no-op */
+			}
 			try {
 				app.destroy(true, { children: true });
 			} catch {
 				/* no-op */
 			}
 		},
-		render_system: () => (_w, _ctx) => {
+		render_system: () => (_w, ctx) => {
 			const t0 = now();
-			if (state.camera) state.camera.apply(world);
 			try {
+				app.renderer.render({ container: world, target: render_texture });
 				app.render();
 			} catch {
 				/* no-op */
 			}
 			const t1 = now();
 			stats.last_render_us = (t1 - t0) * 1000;
-			frame_count += 1;
-			const dt = t1 - last_t;
-			fps_acc += dt;
-			if (fps_acc >= 1000) {
-				stats.fps = (frame_count * 1000) / fps_acc;
-				frame_count = 0;
-				fps_acc = 0;
-			}
-			last_t = t1;
+			update_fps();
+			if (dev) ctx.debug.stats().fps = stats.fps;
 		},
 	};
 
-	if (opts.camera) opts.camera.apply(world);
 	return ok(state);
 };

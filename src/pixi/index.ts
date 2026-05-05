@@ -24,7 +24,7 @@ import { schedule as make_schedule } from "../schedule.ts";
 
 import { assets, type AssetError, type Assets_, type AssetsOpts } from "./assets.ts";
 import { browser_source, type BrowserSource, type BrowserSourceOpts } from "./input-browser.ts";
-import { camera, type Camera, type CameraOpts, type CameraMode } from "./camera.ts";
+import { camera, type Camera, type CameraOpts, type CameraMode, type Viewport } from "./camera.ts";
 import { make_render, type RenderState, type RenderError, type RenderOpts } from "./render.ts";
 import { sprite_c, sprite_sync_system, type SpriteData, type SpriteSystemOpts } from "./sprite.ts";
 import { anim_sync_system, type AnimPixiOpts } from "./anim-pixi.ts";
@@ -52,6 +52,7 @@ export type {
 	Camera,
 	CameraOpts,
 	CameraMode,
+	Viewport,
 	RenderState,
 	RenderError,
 	RenderOpts,
@@ -87,6 +88,7 @@ export type BootOpts = {
 	bindings?: Bindings;
 	engine_store?: EngineStore;
 	camera?: CameraOpts;
+	window?: { width: number; height: number };
 	assets?: readonly AssetSpec[];
 	pos?: Component<{ x: number; y: number }>;
 	__dev__?: boolean;
@@ -128,8 +130,10 @@ export const boot = async (opts: BootOpts): Promise<Result<App, BootError>> => {
 	if (!mount_r.ok) return mount_r;
 	const mount = mount_r.value;
 
-	const width = opts.width ?? 640;
-	const height = opts.height ?? 360;
+	const design_w = opts.camera?.design.width ?? opts.width ?? 640;
+	const design_h = opts.camera?.design.height ?? opts.height ?? 360;
+	const window_w = opts.window?.width ?? design_w;
+	const window_h = opts.window?.height ?? design_h;
 
 	const w = opts.world ?? make_world();
 	const sch = opts.schedule ?? make_schedule();
@@ -142,16 +146,13 @@ export const boot = async (opts: BootOpts): Promise<Result<App, BootError>> => {
 
 	if (opts.bindings) inp.bind(opts.bindings);
 
-	const cam = camera({
-		mode: opts.camera?.mode ?? "fit",
-		width: opts.camera?.width ?? width,
-		height: opts.camera?.height ?? height,
-		pos: opts.camera?.pos,
-		zoom: opts.camera?.zoom,
+	const cam = camera(opts.camera ?? {
+		design: { width: design_w, height: design_h },
+		mode: "letterbox",
 	});
-	cam.resize(width, height);
+	cam.resize(window_w, window_h);
 
-	const render_r = await make_render({ width, height, background: opts.background, mount, camera: cam });
+	const render_r = await make_render({ background: opts.background, mount, camera: cam });
 	if (!render_r.ok) return err({ kind: "render_failed", cause: render_r.error });
 	const render = render_r.value;
 
