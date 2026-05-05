@@ -24,8 +24,11 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           registry-url: https://registry.npmjs.org
+
+      - name: Ensure npm ≥ 11.5.1
+        run: npm install -g npm@latest
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -46,8 +49,6 @@ jobs:
         run: npm publish --dry-run
 
       - name: Publish to npm (if version changed)
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           local_version=$(node -p "require('./package.json').version")
           published_version=$(npm view @f0rbit/forge version 2>/dev/null || echo "none")
@@ -57,4 +58,4 @@ jobs:
             echo "version $local_version already on npm; skipping"
             exit 0
           fi
-          npm publish --access public --provenance
+          npm publish --access public
