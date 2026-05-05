@@ -1,4 +1,4 @@
-name: release
+name: publish
 
 on:
   push:
@@ -28,7 +28,7 @@ jobs:
           registry-url: https://registry.npmjs.org
 
       - name: Ensure npm ≥ 11.5.1
-        run: npm install -g npm@latest
+        run: npm install -g npm@latest --force
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
