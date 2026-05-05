@@ -64,12 +64,12 @@ const draw_cmd = (g: Graphics, cmd: DebugCmd): void => {
 	}
 };
 
-const format_hud = (stats: DebugStats, scale: number): string => {
+const format_hud = (stats: DebugStats): string => {
 	const lines: string[] = [];
 	lines.push(`tick ${stats.tick}`);
 	lines.push(`fps  ${stats.fps.toFixed(1)}`);
 	lines.push(`ents ${stats.entities}`);
-	lines.push(`scale ${scale.toFixed(2)}`);
+	lines.push(`tscale ${stats.tscale.toFixed(2)}`);
 	const sys = stats.system_us;
 	const keys = Object.keys(sys).sort();
 	for (const k of keys.slice(0, 6)) {
@@ -156,7 +156,7 @@ export const debug_pixi = (opts: DebugPixiOpts): System => {
 
 		ctx.debug.tick_stats(w, ctx.time);
 		if (hud_text) {
-			hud_text.text = format_hud(ctx.debug.stats(), ctx.time.scale);
+			hud_text.text = format_hud(ctx.debug.stats());
 		}
 	};
 };

@@ -1,5 +1,13 @@
 # @f0rbit/forge
 
+## 0.1.4
+
+### Patch Changes
+
+- Drop vestigial `BootOpts.width / .height / .background` fields. Use `window` + `camera.design` opts instead. **Breaking** — but no consumers besides coin-collector which already uses the new shape.
+
+  Rename debug HUD `stats.scale` → `stats.tscale` so it doesn't collide visually with viewport scale. Matches the `tscale` palette command.
+
 ## 0.1.3
 
 ### Patch Changes

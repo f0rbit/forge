@@ -23,6 +23,7 @@ export type DebugStats = {
 	tick: number;
 	entities: number;
 	fps: number;
+	tscale: number;
 	system_us: Record<string, number>;
 };
 

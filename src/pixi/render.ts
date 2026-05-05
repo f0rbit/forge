@@ -22,7 +22,6 @@ export type RenderState = {
 
 export type RenderOpts = {
 	camera: Camera;
-	background?: number | string;
 	mount?: HTMLElement | null;
 	now?: () => number;
 };
@@ -58,7 +57,7 @@ export const make_render = async (opts: RenderOpts): Promise<Result<RenderState,
 		await app.init({
 			width: Math.max(1, Math.round(initial_w)),
 			height: Math.max(1, Math.round(initial_h)),
-			background: opts.background ?? 0x101820,
+			backgroundAlpha: 0,
 			autoStart: false,
 		});
 	} catch (e) {

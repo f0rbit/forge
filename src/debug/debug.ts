@@ -27,7 +27,7 @@ export type Debug = {
 	counter: (name: string, value: number | string) => void;
 	counters: () => Readonly<Record<string, number | string>>;
 	stats: () => DebugStats;
-	tick_stats: (w: World, time: { tick: number }, fps?: number) => void;
+	tick_stats: (w: World, time: { tick: number; scale?: number }, fps?: number) => void;
 	timing: (system: string, micros: number) => void;
 	select: (id: Id | null) => void;
 	selected: () => Id | null;
@@ -47,7 +47,7 @@ export const debug = (opts?: DebugOpts): Debug => {
 	const buffer: DebugCmd[] = [];
 	const pins = new Map<Id, Map<PinKind, Pin>>();
 	const counter_state: Record<string, number | string> = {};
-	const stats_state: DebugStats = { tick: 0, entities: 0, fps: 0, system_us: {} };
+	const stats_state: DebugStats = { tick: 0, entities: 0, fps: 0, tscale: 1, system_us: {} };
 	let selected_id: Id | null = null;
 	let cur_tick = 0;
 
@@ -130,6 +130,7 @@ export const debug = (opts?: DebugOpts): Debug => {
 			cur_tick = t.tick;
 			stats_state.tick = t.tick;
 			stats_state.entities = w.count();
+			if (t.scale !== undefined) stats_state.tscale = t.scale;
 			if (fps !== undefined) stats_state.fps = fps;
 			expire_pins();
 		},

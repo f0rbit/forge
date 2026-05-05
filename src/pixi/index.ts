@@ -74,9 +74,6 @@ export type BootError =
 
 export type BootOpts = {
 	mount: HTMLElement | string;
-	width?: number;
-	height?: number;
-	background?: number | string;
 	world?: World;
 	schedule?: Schedule;
 	time?: Time;
@@ -130,8 +127,8 @@ export const boot = async (opts: BootOpts): Promise<Result<App, BootError>> => {
 	if (!mount_r.ok) return mount_r;
 	const mount = mount_r.value;
 
-	const design_w = opts.camera?.design.width ?? opts.width ?? 640;
-	const design_h = opts.camera?.design.height ?? opts.height ?? 360;
+	const design_w = opts.camera?.design.width ?? 640;
+	const design_h = opts.camera?.design.height ?? 360;
 	const window_w = opts.window?.width ?? design_w;
 	const window_h = opts.window?.height ?? design_h;
 
@@ -152,7 +149,7 @@ export const boot = async (opts: BootOpts): Promise<Result<App, BootError>> => {
 	});
 	cam.resize(window_w, window_h);
 
-	const render_r = await make_render({ background: opts.background, mount, camera: cam });
+	const render_r = await make_render({ mount, camera: cam });
 	if (!render_r.ok) return err({ kind: "render_failed", cause: render_r.error });
 	const render = render_r.value;
 
