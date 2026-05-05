@@ -2,6 +2,8 @@
 
 A small, functional, composition-first TypeScript game engine published as a single npm package with subpath exports. PIXI v8 is consumed strictly as a renderer + asset loader at the edge (`@f0rbit/forge/pixi`, peer-dep on `pixi.js`); everything else (ECS, scheduling, input, time, RNG, replay, persistence, debug, palette) is renderer-agnostic and runs headless under `bun test`. Determinism is a hard guarantee, not an aspiration.
 
+**Documentation**: <https://f0rbit.github.io/forge/>
+
 > **Full API documentation lives in [`USAGE.md`](./USAGE.md)** — a comprehensive reference covering every subsystem, every export, the determinism contract, the camera math, a cookbook of common patterns, and worked examples lifted from the canonical consumer (`coin-collector`).
 
 For the design doc see [`PLAN.md`](./PLAN.md); for release notes see [`CHANGELOG.md`](./CHANGELOG.md).

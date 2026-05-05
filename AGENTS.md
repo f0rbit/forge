@@ -52,3 +52,13 @@ This repo IS the npm package `@f0rbit/forge`. The `dist/` output is what ships. 
 ## Canonical design doc
 
 `PLAN.md` is the source of truth for design until v1 ships. Read §3 (architecture), §4 (API surface), §8 (build), §9 (phases) before making API or structural changes.
+
+## Documentation
+
+Docs live in `docs/` as a private Astro Starlight workspace, modelled on `~/dev/corpus/docs` and `~/dev/ui/docs`. Theming uses `@f0rbit/ui` v0.1.x via `@f0rbit/ui/styles` + `@f0rbit/ui/styles/starlight`.
+
+- Pages: `docs/src/content/docs/**/*.mdx` — MDX is the source of truth (Model A); `USAGE.md` will be regenerated from MDX in Phase 5.
+- Sidebar config: `docs/astro.config.mjs`.
+- Local dev: `bun run docs:dev` (preview at `localhost:4321/forge/`); `bun run docs:build` from the repo root surfaces broken sidebar slugs and link errors.
+- Deploy: `.github/workflows/docs.yml` builds and publishes to `https://f0rbit.github.io/forge/` on push to `main` (or via `workflow_dispatch`). The library-build step is intentionally absent — the docs site pulls `@f0rbit/ui` from npm, not from `..`.
+- The docs workspace is excluded from the published npm tarball (see `package.json` `files`).
