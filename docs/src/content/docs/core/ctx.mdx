@@ -1,0 +1,27 @@
+---
+title: Ctx
+description: Context passed to every system containing time, RNG, resources, input, debug, and optional storage.
+---
+
+Every system receives `(world, ctx)`. The ctx exposes the kernel resources:
+
+```ts
+type Ctx = {
+  time: Time;
+  rng: Rng;
+  res: Resources;
+  input: Input;
+  debug: Debug;
+  palette: Palette;
+  store?: EngineStore;  // present if boot(...).engine_store was supplied
+};
+```
+
+The `store` field is optional — `boot()` and the test harness only attach it when explicitly given an `engine_store` instance. Game code that wants persistence can pass one in or query for it:
+
+```ts
+sch.add("post", (w, ctx) => {
+  if (!ctx.store) return;  // headless test mode
+  // ...
+});
+```

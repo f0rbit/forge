@@ -1,0 +1,25 @@
+---
+title: Presets
+description: Built-in binding presets for common input schemes.
+---
+
+```ts
+import { presets } from "@f0rbit/forge/presets";
+```
+
+| Preset | Actions | Notes |
+|---|---|---|
+| `movement2d` | `move.x`, `move.y` (axes) | Arrows + WASD + left stick + d-pad pairs. |
+| `movement8way` | `move.left`, `move.right`, `move.up`, `move.down` (digital), plus the `movement2d` axes | Useful when you want both stick smoothing and crisp digital edges. |
+| `platformer` | `jump` (digital, Space + pad south), `move.x` (axis) | Side-scrolling. |
+| `twinstick` | `move.x`, `move.y` (left stick / WASD), `aim.x`, `aim.y` (right stick / arrows) | Top-down shooter. |
+| `menu` | `up`, `down`, `left`, `right`, `confirm`, `cancel` (digital) | Pure d-pad / arrow / Enter / Esc menu controls. |
+
+Presets are plain `Bindings` records — combine them with `merge_bindings`:
+
+```ts
+import { merge_bindings } from "@f0rbit/forge";
+import { presets } from "@f0rbit/forge/presets";
+
+const bindings = merge_bindings(presets.platformer, presets.menu);
+```

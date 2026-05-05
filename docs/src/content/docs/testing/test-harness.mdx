@@ -1,0 +1,51 @@
+---
+title: Test Harness
+description: Testing utilities for unit and integration tests without setup boilerplate
+---
+
+```ts
+import { harness, type Harness, type HarnessOpts } from "@f0rbit/forge";
+
+const h: Harness = harness({
+  seed: 1,
+  fixed_dt: 1/60,
+  bindings: presets.movement2d,
+  __dev__: true,
+});
+```
+
+Returns:
+
+```ts
+type Harness = {
+  world: World;
+  schedule: Schedule;
+  time: Time;
+  rng: Rng;
+  res: Resources;
+  input: Input;
+  debug: Debug;
+  palette: Palette;
+  ctx: Ctx;
+  tick: (real_dt?: number) => void;
+};
+```
+
+`harness.tick(real_dt?)` advances `time`, runs the `update` stage, and drains the debug frame. Use `h.schedule.tick(h.world, h.ctx)` to pump every stage (including `pre` / `post` / `render`) — `harness.tick` is the minimal "just run game logic" path.
+
+## Use cases
+
+- **Unit-test a single system.** Spawn entities, call the system directly: `my_system(h.world, h.ctx)`.
+- **Integration-test a plugin.** Install via `game_plugin(h.world, h.schedule)`, drive with `h.input.inject_actions(...)`, advance ticks.
+- **Replay-driven test.** Wire `replay.play(doc, h.input, () => h.time.tick)` and tick to completion. (See determinism section.)
+
+`__dev__` controls whether `debug` is the real `debug({ enabled: true, dev: true })` instance or `debug_noop()`. Default `true`. Pass `false` for production-mode testing.
+
+The harness omits `engine_store` from its `ctx` — wire one up yourself if your tests need persistence:
+
+```ts
+const h = harness();
+const store = engine_store();
+const ctx = { ...h.ctx, store };
+sys(h.world, ctx);
+```

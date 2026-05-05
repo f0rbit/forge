@@ -1,0 +1,40 @@
+---
+title: Built-in Commands
+description: Pre-wired palette commands for saves, time control, and bindings
+---
+
+Wire built-ins into the palette via `palette.register(...)`:
+
+```ts
+import { palette, builtins, snapshotter } from "@f0rbit/forge";
+import { engine_store } from "@f0rbit/forge/storage";
+
+const p = palette();
+const snap = snapshotter().register(pos_c).register(vel_c);
+const store = engine_store();
+
+for (const cmd of builtins({ world, snapshotter: snap, snapshots: store.snapshots })) {
+  p.register(cmd);
+}
+```
+
+| Name | Args | Effect | Output / Error |
+|---|---|---|---|
+| `save` | `<slot:string>` | `snapshotter.take` + `store.save` | `"saved to slot:<slot>"` / `"snapshot failed:..."` |
+| `load` | `<slot:string>` | `store.load` + `snapshotter.restore` | `"loaded from slot:<slot>"` / `"slot not found:..."` |
+| `pause` | — | Stashes prior `time.scale`, sets to 0 | `"paused"` |
+| `resume` | — | Restores prior scale (or 1) | `"resumed at scale <n>"` |
+| `tscale` | `<scale:number>` | Sets `time.scale` directly | `"time.scale=<n>"` |
+| `bind` | `<action:string> <trigger:string>` | Appends a digital trigger | `"bound jump -> Space"` |
+| `unbind` | `<action:string>` | Removes all triggers + axes for action | `"unbound jump"` |
+| `inspect` | `<id:int>` | Calls `debug.inspect` | `"#5\n  pos = {...}\n  vel = {...}"` |
+| `dbg` | `[on \| off \| toggle]` | Toggles debug overlay | `"debug=true"` / `"debug=false"` |
+
+`bind` accepts:
+
+- `Space`, `KeyA`–`KeyZ`, `Digit0`–`Digit9`, `Arrow{Up,Down,Left,Right}`, `F1`–`F12`, `Enter`, `Escape`, `Backspace`, `Tab`, `Shift{Left,Right}` — bare `KeyboardEvent.code` strings.
+- `key:<code>` — explicit key namespace.
+- `mouse:0` / `mouse:1` / `mouse:2` — mouse buttons.
+- `pad.button:<n>` — gamepad button.
+
+All commands return `Result<string, CommandError>`; the palette UI shows the success string in green, the error string in red, for ~120 ticks.

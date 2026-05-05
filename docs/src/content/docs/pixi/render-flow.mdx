@@ -1,0 +1,38 @@
+---
+title: "Render Flow"
+description: "Two-stage rendering pipeline for crisp pixel-perfect output"
+---
+
+PixelatedPope-style ([source](https://www.html5gamedevs.com/topic/45827-pixelpope-pixel-art-with-pixijs/)):
+
+```
+1. World container ─renderer.render→ RenderTexture (sized to viewport.view)
+2. Surface Sprite (textured by RenderTexture) ─addChild→ stage
+   - scale = viewport.scale
+   - position = viewport.offset
+3. Stage rendered to canvas (default render path)
+```
+
+This keeps the world container at **design coordinates** — no per-frame container scaling. Subpixel artifacts go away because the only resampling is texture→canvas, controlled by `scaleMode`.
+
+Debug overlay and palette overlay are added **directly to the stage** (not the world). They render in *screen space* — when the camera scales the surface, debug labels stay readable. If you want a debug shape in *world space*, draw it inside a system that projects via `camera.world_to_screen`.
+
+## RenderState
+
+```ts
+type RenderState = {
+  app: Application;            // PIXI app
+  world: Container;            // world container (game-space)
+  debug_overlay: Container;    // stage child (screen-space)
+  palette_overlay: Container;  // stage child (screen-space)
+  camera: Camera;
+  canvas: () => HTMLCanvasElement | null;
+  dispose: () => void;
+  stats: { last_render_us: number; fps: number };
+  render_system: () => System;
+  resize: (w: number, h: number) => void;
+  viewport: () => Viewport;
+};
+```
+
+You shouldn't need `make_render` directly — `boot()` calls it internally — but it's exported as an escape hatch for custom embed scenarios.

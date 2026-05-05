@@ -1,0 +1,128 @@
+---
+title: "Camera Modes"
+description: "Five camera scaling modes with worked sizing examples for each"
+---
+
+The camera takes a **design viewport** (the size you authored your game for) and a **window** (the host browser window). It returns a `Viewport`:
+
+```ts
+type Viewport = {
+  scale: number;                          // pixel scale (integer except in "fit")
+  view:  { width: number; height: number }; // game-space viewport size
+  offset: { x: number; y: number };       // black-bar offset on the host
+};
+```
+
+## Five modes
+
+Each mode is shown with worked sizing math for design 320×180 and host window 1920×1080.
+
+### letterbox
+
+Pixel-perfect, design viewport never changes, black bars fill the rest.
+
+```
+sx = 1920 / 320 = 6
+sy = 1080 / 180 = 6
+raw = min(6, 6) = 6
+pixel_perfect → floor(6) = 6
+view  = { 320, 180 }
+offset = { (1920 - 320*6)/2, (1080 - 180*6)/2 } = { 0, 0 }
+```
+
+Example: `design 320×180` on `1280×720`:
+
+```
+sx = 1280/320 = 4, sy = 720/180 = 4 → scale 4
+view  = { 320, 180 }
+offset = { (1280-1280)/2, (720-720)/2 } = { 0, 0 }
+```
+
+Example: `design 320×180` on `1366×768`:
+
+```
+sx = 4.27, sy = 4.27 → floor(4.27) = 4
+view  = { 320, 180 }
+offset = { (1366 - 320*4)/2, (768 - 180*4)/2 } = { 43, 24 }    // 43px left/right bars, 24px top/bottom
+```
+
+### extend
+
+Pixel-perfect, view extends both axes to fill more of the host. Use when you want larger windows to "see more world".
+
+Example: `design 320×180` on `1920×1080`, no `min`/`max`:
+
+```
+scale = floor(min(6, 6)) = 6
+view_w = round(1920/6) = 320
+view_h = round(1080/6) = 180
+offset = { 0, 0 }
+```
+
+Example: `design 320×180`, `min: { 320, 180 }`, `max: { 480, 270 }`, on `1920×1200` (taller window):
+
+```
+sx = 1920/320 = 6, sy = 1200/180 = 6.67 → floor(min) = 6
+view_w_raw = round(1920/6) = 320
+view_h_raw = round(1200/6) = 200 → clamped to max(270) → 200 (within max)
+view  = { 320, 200 }
+offset = { (1920 - 320*6)/2, (1200 - 200*6)/2 } = { 0, 0 }
+```
+
+Example: `design 320×180`, `min`, `max`, on `2560×1440`:
+
+```
+scale = floor(min(8, 8)) = 8
+view_w_raw = 320, view_h_raw = 180
+view  = { 320, 180 }   // window happens to be exact integer multiple
+offset = { 0, 0 }
+```
+
+### extend-x
+
+Extend horizontally only. Vertical view = design height.
+
+Example: `design 320×180` on `1920×1080`:
+
+```
+scale = 6
+view_w_raw = round(1920/6) = 320, view_h = 180
+offset_x = 0, offset_y = 0
+```
+
+Example: `design 320×180` on `2560×1080`:
+
+```
+sx = 8, sy = 6 → scale = floor(min) = 6
+view_w_raw = round(2560/6) = 427
+view_h     = 180
+offset_x = (2560 - 427*6)/2 = -1, offset_y = (1080 - 180*6)/2 = 0
+```
+
+(The `-1` happens because `round` introduces a 1px slop; the surface still centers, just offset by a fractional amount the renderer floors.)
+
+### extend-y
+
+Extend vertically only. Horizontal view = design width.
+
+### fit
+
+Fractional scale, design viewport never changes, **smooth scaling** (likely with `smoothing: true`).
+
+Example: `design 320×180` on `1920×1080`:
+
+```
+scale = min(1920/320, 1080/180) = min(6, 6) = 6.0
+view  = { 320, 180 }
+offset = { 0, 0 }
+```
+
+Example: `design 320×180` on `1366×768`:
+
+```
+scale = min(1366/320, 768/180) = min(4.27, 4.27) = 4.27
+view  = { 320, 180 }
+offset = { (1366 - 320*4.27)/2, (768 - 180*4.27)/2 } = { 0.8, 0.7 }
+```
+
+Use `fit` when you want to fill the window and don't care about pixel art crispness. Combine with `smoothing: true`.

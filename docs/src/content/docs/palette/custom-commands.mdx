@@ -1,0 +1,35 @@
+---
+title: Custom Commands
+description: Register custom palette commands with argument validation
+---
+
+```ts
+import { palette, type Command } from "@f0rbit/forge";
+import { z } from "zod";
+
+const give_coins: Command<readonly [number]> = {
+  name: "give_coins",
+  desc: "add N coins to the score",
+  args: z.tuple([z.number().int().nonnegative()]),
+  run: ([n], ctx) => {
+    const s = ctx.res.get(score_r);
+    if (!s.ok) return { ok: false, error: { kind: "runtime", message: "no score" } };
+    s.value.value += n;
+    return { ok: true, value: `+${n} coins` };
+  },
+};
+
+p.register(give_coins);
+```
+
+`run` may be sync or async; the palette `await`s it either way. Args go through `coerce_arg` first (numeric strings become numbers, `true`/`false` become booleans), then through the Zod schema.
+
+`CommandError` cases:
+
+```ts
+type CommandError =
+  | { kind: "unknown_command"; name: string }
+  | { kind: "parse";           message: string }
+  | { kind: "validation";      issues: readonly string[] }
+  | { kind: "runtime";         message: string };
+```

@@ -1,0 +1,40 @@
+---
+title: World
+description: The ECS core — sparse-set entity storage with integer IDs and component queries.
+---
+
+The `World` is a sparse-set ECS keyed by integer entity ids. Components are stored per-key; queries walk the smallest store first.
+
+```ts
+import { world, component, pos_c, type Id } from "@f0rbit/forge";
+
+const vel_c = component<{ dx: number; dy: number }>("vel");
+
+const w = world();
+
+const e: Id = w.spawn(
+  [pos_c, { x: 0, y: 0 }],
+  [vel_c, { dx: 1, dy: 0 }],
+);
+
+w.has(e, vel_c);            // → true
+const r = w.get(e, pos_c);  // → Result<{ x, y }, EngineError>
+if (r.ok) r.value;          // → { x: 0, y: 0 }
+
+w.set(e, pos_c, { x: 5, y: 0 });
+w.remove(e, vel_c);
+w.despawn(e);
+w.count();                  // → 0
+```
+
+| Method | Signature | Notes |
+|---|---|---|
+| `spawn` | `(...c: [Component<T>, T][]) => Id` | Returns a fresh integer id. |
+| `spawn_at` | `(id: Id, ...c) => void` | Used by snapshot restore — preserves the id. Bumps `next_id` if greater. |
+| `despawn` | `(id) => Result<void, EngineError>` | Removes from every store. |
+| `has` | `(id, c) => boolean` | Pure check, no allocation. |
+| `get` | `(id, c) => Result<T, EngineError>` | `kind: "component_missing"` if absent. |
+| `set` | `(id, c, data) => Result<void, EngineError>` | Adds the component if not present and bumps the version. Errors `entity_not_found` if despawned. |
+| `remove` | `(id, c) => Result<void, EngineError>` | Errors `component_missing` if not present. |
+| `query` | `(cs, opts?) => Query<C>` | See [Queries](/forge/core/queries/). |
+| `count` | `() => number` | Live entity count. |

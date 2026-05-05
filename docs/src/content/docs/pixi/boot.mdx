@@ -1,0 +1,83 @@
+---
+title: "boot()"
+description: "Initialize the PIXI renderer and connect it to the forge engine"
+---
+
+`boot` is the big-bang entry: build the world (or use yours), wire pixi, register sprite/anim/render systems, return an `App`.
+
+```ts
+import { boot, type BootOpts, type App } from "@f0rbit/forge/pixi";
+
+const r = await boot({
+  mount: "#root",
+  window: { width: globalThis.innerWidth, height: globalThis.innerHeight },
+  camera: {
+    design: { width: 320, height: 180 },
+    mode: "extend",
+    min: { width: 320, height: 180 },
+  },
+  bindings: presets.movement2d,
+});
+if (!r.ok) throw new Error(`boot failed: ${r.error.kind}`);
+const app: App = r.value;
+```
+
+## BootOpts (v0.1.4)
+
+```ts
+type BootOpts = {
+  mount: HTMLElement | string;        // CSS selector or element
+  world?:    World;
+  schedule?: Schedule;
+  time?:     Time;
+  rng?:      Rng;
+  res?:      Resources;
+  input?:    Input;
+  debug?:    Debug;
+  palette?:  Palette;
+  bindings?: Bindings;
+  engine_store?: EngineStore;
+  camera?:   CameraOpts;              // see Camera Modes
+  window?:   { width: number; height: number };  // host window — required for non-trivial cases
+  assets?:   readonly AssetSpec[];    // [{ kind: "image", alias, url } | { kind: "atlas", alias, url }]
+  pos?:      Component<{ x: number; y: number }>; // override pos_c
+  __dev__?:  boolean;
+};
+```
+
+**v0.1.4 breaking change:** the old `width` / `height` / `background` fields are gone. Use `window` for the host window size and `camera.design` for the authored design size. Background is now controlled by CSS (`#root { background: #000; }`) or by the surface texture's clear color (transparent by default).
+
+## App shape
+
+```ts
+type App = {
+  app:      Application;       // raw PIXI Application (escape hatch)
+  world:    World;
+  schedule: Schedule;
+  time:     Time;
+  rng:      Rng;
+  res:      Resources;
+  input:    Input;
+  debug:    Debug;
+  palette:  Palette;
+  assets:   Assets;
+  render:   RenderState;       // .resize(w,h), .canvas(), .stats, .viewport()
+  camera:   Camera;
+  source:   BrowserSource;
+  tick:     (real_dt: number) => void;
+  start:    () => void;        // begins the requestAnimationFrame loop
+  stop:     () => void;        // cancels the loop (idempotent)
+  dispose:  () => void;        // stop + dispose source/render/palette
+  canvas:   () => HTMLCanvasElement | null;
+  ctx:      () => Ctx;
+};
+```
+
+## BootError cases
+
+```ts
+type BootError =
+  | { kind: "mount_not_found"; selector: string }
+  | { kind: "render_failed";   cause: RenderError }
+  | { kind: "asset_failed";    alias: string; cause: AssetError };
+```

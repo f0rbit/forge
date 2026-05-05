@@ -1,0 +1,23 @@
+---
+title: "Resize"
+description: "Handle window and container resizing"
+---
+
+`boot` does not subscribe to window resize. Wire it explicitly:
+
+```ts
+globalThis.addEventListener("resize", () => {
+  app.render.resize(globalThis.innerWidth, globalThis.innerHeight);
+});
+```
+
+`render.resize(w, h)` calls `camera.resize(w, h)` (which recomputes the viewport), `app.renderer.resize(w, h)`, and reapplies the new viewport to the surface sprite (scale + offset) and the render texture (size).
+
+For an Astro embed or a sized container, `ResizeObserver` against the mount works the same way:
+
+```ts
+new ResizeObserver(([entry]) => {
+  const { width, height } = entry!.contentRect;
+  app.render.resize(width, height);
+}).observe(mount);
+```

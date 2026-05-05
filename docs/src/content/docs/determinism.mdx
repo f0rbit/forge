@@ -1,0 +1,51 @@
+---
+title: Determinism Contract
+description: The engine's guarantee that replayed sessions produce byte-identical results
+---
+
+**Same `seed` + same `fixed_dt` + same recorded action stream + same code = byte-identical world hash on every run.**
+
+This is the engine's hard guarantee and the foundation of replay-as-fixture testing.
+
+## What's guaranteed
+
+- Integer `time.tick` (no FP drift in the timeline).
+- Insertion-ordered systems within each stage.
+- Sorted entity iteration in snapshot output.
+- Seeded `mulberry32` RNG.
+- Action streams instead of raw events.
+- Whole-tick animation frame durations.
+
+## What would break it (foot-guns)
+
+| Source | Mitigation |
+|---|---|
+| `Date.now()` | Banned outside `src/pixi/`. Use `time.tick`. |
+| `Math.random()` | Banned engine-wide. Use `rng.next()` / `rng.fork()`. |
+| `setTimeout` / `setInterval` | Banned outside `src/pixi/`. Use a tick counter or schedule a periodic system. |
+| `Map` insertion order surprises | Engine relies on insertion order — don't reorder maps mid-iteration. |
+| Async game logic | Don't `await` inside a system. The schedule is synchronous. |
+| Floating-point drift on `t.elapsed` | Pre-v0.1 issue; v0.1.x integer-tick model fixes it. |
+| `Date.now()`-seeded `rng()` | Seed deterministically in your boot code. |
+
+## Enforcement
+
+The repo runs `bun tools/no-throws.ts` (the `check:determinism` script) which AST-walks `src/` and fails the build on:
+
+- `Date.now`, `Math.random`, `setTimeout`, `setInterval` outside `src/pixi/`.
+- `pixi.js` / `@pixi/*` imports outside `src/pixi/`.
+
+## The PIXI quarantine
+
+`src/pixi/` is the *only* directory allowed browser non-determinism. It uses:
+
+- `performance.now()` for HUD fps (gated on `is_dev()`; production skips entirely).
+- Gamepad polling (snapshots taken inside `drain()`; events are then deterministic per tick).
+- Browser DOM events (`KeyboardEvent`, `MouseEvent`) — non-deterministic by nature, but they only matter for *live* play. Replays inject deterministic actions at `pre_advance`, bypassing the source.
+
+## Why this matters even for single-player games
+
+- **Replay tests.** Cheap regression coverage — record a winning run once, replay it on every CI.
+- **Save/load.** A snapshot taken at tick 600 must produce the same future as the original session.
+- **Bug repros.** "Run this 12-second replay against the latest code" is a much better repro than "WASD a bunch and see if the player gets stuck".
+- **Future multiplayer.** When the action-stream model gets wrapped in netcode, lockstep just works.

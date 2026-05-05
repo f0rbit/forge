@@ -1,0 +1,66 @@
+---
+title: Overview
+description: Forge replays record action streams for deterministic playback and testing.
+---
+
+## What's recorded
+
+Forge replays are **action streams**, not raw event streams. The recorder watches the action state on every `advance()` (after refresh) and writes one event per *transition*:
+
+| Action kind | Event |
+|---|---|
+| Digital false→true | `{ kind: "press", action, tick }` |
+| Digital true→false | `{ kind: "release", action, tick }` |
+| Axis value change | `{ kind: "axis", action, value, tick }` |
+
+Axis changes use a `1e-6` epsilon — minor float jitter doesn't bloat the file.
+
+## Why action streams?
+
+Three reasons:
+
+1. **Size.** A 60-second replay typically has tens-to-hundreds of frames vs. tens of thousands of raw events.
+2. **Hardware-independent.** Same recording plays whether the user used WASD or a gamepad.
+3. **Forward-compatible.** Add a new mouse axis next year — old replays still work because they record `move.x`, not `MouseMove(45, 91)`.
+
+## Recording
+
+Two factories. Most game code uses `record_engine`:
+
+```ts
+import { harness, replay } from "@f0rbit/forge";
+
+const h = harness({ seed: 1, fixed_dt: 1/60, bindings: presets.movement2d });
+const recorder = replay.record_engine(h.input, h.ctx, { seed: 1 });
+
+// drive the sim however you like — input.inject_actions, scripted source, etc.
+h.input.inject_actions([{ kind: "axis", action: "move.x", value: 1 }]);
+for (let i = 0; i < 600; i++) {
+  h.time.advance(1/60);
+  h.schedule.tick(h.world, h.ctx);
+}
+
+const doc = recorder.stop();   // detaches listeners, returns ReplayDoc
+```
+
+`record_engine(input, ctx, opts?)` infers `seed` and `fixed_dt` from `ctx`. The lower-level `replay.record(input, { seed, fixed_dt, get_tick })` is for cases where you don't have a `Ctx`.
+
+`recorder.dump()` snapshots without stopping (so you can keep recording).
+
+## Playback
+
+```ts
+const doc: ReplayDoc = /* ... loaded from disk ... */;
+const player = replay.play(doc, input, () => time.tick);
+
+while (!player.complete()) {
+  time.advance(doc.fixed_dt);
+  schedule.tick(world, ctx);
+}
+
+player.detach();
+```
+
+`play` registers an `on_pre_advance` listener. On every tick, **before** the source drain runs, the player calls `input.inject_actions(events_for_this_tick)`. Injected actions take precedence over the source for that tick, so the world evolves identically to the original recording — provided seed, code, and `fixed_dt` match.
+
+`player.complete()` returns true once the player has drained the last recorded frame. `player.detach()` removes the listener (call this if you switch from playback to live input mid-session).

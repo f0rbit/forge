@@ -1,0 +1,88 @@
+---
+title: Extending Forge
+description: Patterns for extending the engine with custom components, presets, and behaviors
+---
+
+## Adding new components in your game
+
+```ts
+// game/src/components.ts
+import { component, type Component } from "@f0rbit/forge";
+
+export const hp_c:    Component<{ value: number; max: number }> = component("hp");
+export const enemy_c: Component<{ aggro: number }>              = component("enemy");
+export const tag_c:   Component<true>                           = component("tag");
+```
+
+Always export the component descriptor. Importers reference it by the exported binding, never reconstruct it inline.
+
+## Custom presets
+
+Just a `Bindings` value:
+
+```ts
+// game/src/presets.ts
+import type { Bindings } from "@f0rbit/forge";
+import { presets } from "@f0rbit/forge/presets";
+import { merge_bindings } from "@f0rbit/forge";
+
+export const my_preset: Bindings = merge_bindings(presets.platformer, {
+  digital: {
+    interact: [{ kind: "key", code: "KeyE" }],
+  },
+  axes: {},
+  deadzone: 0.15,
+});
+```
+
+## Custom palette commands
+
+Useful for "level editor in dev mode":
+
+```ts
+const spawn_at_cmd: Command<readonly [number, number]> = {
+  name: "spawn",
+  desc: "spawn an enemy at (x, y)",
+  args: z.tuple([z.number(), z.number()]),
+  run: ([x, y], _ctx) => {
+    world.spawn([pos_c, { x, y }], [enemy_c, { aggro: 1 }]);
+    return ok(`spawned enemy at ${x},${y}`);
+  },
+};
+
+palette.register(spawn_at_cmd);
+```
+
+Wrap the registration in `if (is_dev())` to keep it out of production builds.
+
+## Custom debug pins
+
+The `Pin` data field is `unknown`. Push whatever shape you want:
+
+```ts
+debug.pin(boss, { kind: "label", data: `hp: ${hp.value}/${hp.max}`, ttl: 0 });
+debug.pin(boss, { kind: "arrow", data: { tx: target.x, ty: target.y }, ttl: 0 });
+
+// in your render system, read them back:
+for (const pin of debug.pinned()) {
+  if (pin.kind === "arrow") {
+    const { tx, ty } = pin.data as { tx: number; ty: number };
+    const pos = world.get(pin.id, pos_c);
+    if (pos.ok) debug.line(pos.value, { x: tx, y: ty }, "yellow");
+  }
+}
+```
+
+## Cross-game shared modules
+
+For a stable of small games sharing components, vendor a tiny NPM package:
+
+```
+@you/shared-components
+├── package.json
+└── src/
+    ├── index.ts             # exports pos_c-style descriptors
+    └── ...
+```
+
+Because component identity is `Symbol.for(...)`-based, two games consuming the same shared package via different forge versions still produce matching keys.

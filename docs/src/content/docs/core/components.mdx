@@ -1,0 +1,31 @@
+---
+title: Components
+description: Typed descriptors with global symbol identity for cross-bundle consistency.
+---
+
+A `Component<T>` is a typed descriptor. The runtime identity is a **shared global symbol** (`Symbol.for(...)`), so two `component<T>("name")` calls in different bundles produce identical keys.
+
+```ts
+import { component, type Component } from "@f0rbit/forge";
+
+const hp_c: Component<{ value: number; max: number }> = component("hp");
+const tag_c: Component<true>                          = component("tag");
+```
+
+## Why `Symbol.for`?
+
+Before v0.1.2 the engine used `Symbol(...)` (unique per call). When a consumer's code and the `pixi` subpath bundle both imported `pos_c`, they got *different* symbols and queries silently saw zero matches. Black screen. The fix is the global registry — `component("foo") === component("foo")` (their `key` symbols match) is now true. Any `Component<T>` you define participates automatically.
+
+## `_c` suffix convention
+
+The codebase suffixes component descriptors with `_c` (`pos_c`, `vel_c`, `sprite_c`, `anim_c`) to disambiguate the descriptor from the data. The data type itself drops the suffix. The convention is enforced by code review, not the type system.
+
+## Canonical exports
+
+| Export | Subpath | Shape |
+|---|---|---|
+| `pos_c` | `@f0rbit/forge` | `Component<{ x: number; y: number }>` |
+| `anim_c` | `@f0rbit/forge` | `Component<AnimData>` |
+| `sprite_c` | `@f0rbit/forge/pixi` | `Component<SpriteData>` |
+
+`pos_c` is shared so the PIXI sprite-sync and anim-sync systems can find positions without asking your game for a custom component name. You can override via `boot({ pos: my_pos_c })` if you want a different shape, but every `coin-collector`-style game just uses `pos_c`.

@@ -1,0 +1,24 @@
+---
+title: __DEV__ Gating
+description: Three layers of dev code stripping
+---
+
+Three layers of stripping:
+
+1. **Runtime** — `is_dev()` reads `globalThis.__DEV__` if set, else falls back to `process.env.NODE_ENV !== "production"`. Set `globalThis.__DEV__ = false` early in your bootstrap to globally disable debug output.
+2. **`debug({ dev: false })`** — short-circuit individual debug instances.
+3. **`debug_noop()`** — a zero-overhead stub. Pass into the harness/boot when you want compile-time tree-shaking of debug calls (production builds).
+
+Bundler-define pattern (rolldown/rolldown-vite):
+
+```ts
+// rolldown.config.ts
+export default {
+  // ...
+  define: {
+    __DEV__: process.env.NODE_ENV === "production" ? "false" : "true",
+  },
+};
+```
+
+When `__DEV__` resolves to a literal `false`, dead-branch elimination drops the debug emit calls entirely.

@@ -1,0 +1,76 @@
+---
+title: "Assets"
+description: "Load and manage images and texture atlases"
+---
+
+```ts
+import { boot } from "@f0rbit/forge/pixi";
+
+const r = await boot({
+  mount: "#root",
+  assets: [
+    { kind: "image", alias: "hero",   url: "/sprites/hero.png" },
+    { kind: "atlas", alias: "tilemap", url: "/atlases/tilemap.json" },
+  ],
+  // ...
+});
+```
+
+`assets` returns `Result<App, BootError>` — if any asset fails, `boot` disposes the renderer and returns `err({ kind: "asset_failed", alias, cause: AssetError })`.
+
+## Standalone usage
+
+```ts
+const a = app.assets;
+
+const tex_r = await a.image("hero", "/sprites/hero.png");
+if (!tex_r.ok) console.error(tex_r.error);
+
+const sheet_r = await a.atlas("hero_atlas", "/sprites/hero.json");
+if (sheet_r.ok) sheet_r.value.textures["walk_0"];
+
+a.has("hero");                                    // → true
+a.texture("hero");                                 // → Result<Texture, AssetError>
+a.get<Spritesheet>("hero_atlas");                  // → Result<T, AssetError>
+a.dispose();                                       // clear cache
+```
+
+## AssetError cases
+
+```ts
+type AssetError =
+  | { kind: "load_failed";   alias: string; url: string; cause: string }
+  | { kind: "not_loaded";    alias: string }
+  | { kind: "invalid_atlas"; alias: string; issues: readonly string[] }
+  | { kind: "wrong_kind";    alias: string; expected: string };
+```
+
+Atlas JSON is the standard TexturePacker JSON-Hash format with optional `animations` arrays. Frame `duration` (ms) is converted to whole-tick durations using the configured `fixed_dt` — see Anim component.
+
+## The `__default__` atlas
+
+For "I just want to see something on screen", forge auto-registers a 4-frame placeholder atlas at boot:
+
+| Alias | Frames | Pixels |
+|---|---|---|
+| `__default__` | `__default_0__`, `__default_1__`, `__default_2__`, `__default_3__` | 16×16 each, magenta / cyan / yellow / black |
+
+It also defines a `spin` sequence (all four frames at 100ms each) so `anim_c.play("__default__", "spin")` works out of the box.
+
+```ts
+w.set(player, sprite_c, {
+  texture: "__default__",
+  frame: "__default_0__",
+  anchor: { x: 0.5, y: 0.5 },
+});
+```
+
+This is the pattern used in `coin-collector/src/main.ts`.
+
+To skip the default atlas (e.g., production builds with no missing-art fallback):
+
+```ts
+const a = assets({ register_default: false });
+```
+
+(Pass your own `assets` instance via the `boot` API isn't currently supported — `register_default: true` is hard-coded inside `boot`. Bring-your-own atlases simply override entries with the same alias if you ever load `"__default__"` yourself.)

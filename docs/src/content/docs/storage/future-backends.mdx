@@ -1,0 +1,11 @@
+---
+title: Future Backends
+description: Planned storage backends for IndexedDB, Cloudflare R2, and D1
+---
+
+| Backend | Status | Plan |
+|---|---|---|
+| `mem` | Shipped (v0.1.0) | — |
+| `file` | Shipped (v0.1.0) | — |
+| IndexedDB | Post-v1 | When `@f0rbit/corpus` ships an idb backend, slot it in via `engine_store({ backend: "idb" })`. No API change. |
+| Cloudflare R2 / D1 | Post-v1 | Cloud saves for web embeds. Layered with the file/idb backend for offline-first. |

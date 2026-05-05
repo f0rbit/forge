@@ -1,0 +1,58 @@
+---
+title: Deployment
+description: Strategies for deploying forge-based games to production
+---
+
+## Building a game
+
+```sh
+# game repo
+bun build src/main.ts --outdir dist --target browser
+```
+
+Or rolldown / vite / webpack — the choice is yours; forge is plain ESM.
+
+For a static site, drop `index.html` next to `dist/main.js`:
+
+```html
+<!doctype html>
+<html>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./dist/main.js"></script>
+  </body>
+</html>
+```
+
+## GitHub Pages
+
+The `coin-collector` repo's workflow is the canonical example: build on push to main, deploy `dist/` + `index.html` to `gh-pages`.
+
+```yaml
+# .github/workflows/pages.yml
+on: { push: { branches: [main] } }
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install
+      - run: bun run build
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: dist }
+  deploy:
+    needs: build
+    permissions: { pages: write, id-token: write }
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/deploy-pages@v4
+```
+
+## Astro embed
+
+Pattern via `forbit-astro` is **TBD** — link out to a future doc when it's written. Short version: dynamically import the game module on the client, mount onto a div, listen for visibility events to start/stop.
+
+## Tauri (post-v1)
+
+For itch.io or Steam wrappers, Tauri 2 hosts a webview around the same `dist/` bundle. No engine changes needed — the engine is browser-pure.

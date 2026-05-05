@@ -1,0 +1,36 @@
+---
+title: Frame Buffer
+description: Enqueue and drain debug draw commands each frame
+---
+
+Every `debug.line` / `circle` / `rect` / `text` call **enqueues** a draw command. The buffer drains automatically at the end of the `render` stage (`schedule.tick` calls `ctx.debug.frame()` after `render`). One-frame draw calls — call them every tick if you want them every frame.
+
+```ts
+import { vec2 } from "@f0rbit/forge";
+
+debug.line(vec2(0, 0), vec2(100, 50), "red");
+debug.circle(vec2(80, 40), 12, "yellow");
+debug.rect(50, 20, 32, 32, "green");
+debug.text(vec2(64, 8), `score: ${score}`, "white");
+```
+
+`Color` is a string — named (`"red"`, `"green"`, ...) or hex (`"#ff8844"`). The pixi renderer's `COLOR_HEX` map covers white, black, red, green, blue, yellow, cyan, magenta, grey/gray; anything else expects `#rrggbb`.
+
+`debug.frame()` returns and clears the buffer:
+
+```ts
+type DebugCmd =
+  | { kind: "line";   a: Vec2; b: Vec2; color: Color }
+  | { kind: "circle"; center: Vec2; r: number; color: Color }
+  | { kind: "rect";   x: number; y: number; w: number; h: number; color: Color }
+  | { kind: "text";   pos: Vec2; text: string; color: Color };
+```
+
+Headless tests can read frames directly:
+
+```ts
+debug.line(vec2(0, 0), vec2(10, 10));
+const cmds = debug.frame();
+expect(cmds).toHaveLength(1);
+expect(cmds[0].kind).toBe("line");
+```

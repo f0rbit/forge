@@ -1,0 +1,32 @@
+---
+title: RNG
+description: Deterministic seeded random number generator with independent forking for subsystems.
+---
+
+`rng(seed)` returns a deterministic [mulberry32](https://stackoverflow.com/a/47593316) generator. Seed 0 is fine.
+
+```ts
+import { rng } from "@f0rbit/forge";
+
+const r = rng(1);
+r.next();           // → number in [0, 1), uniform
+r.int(0, 9);        // → integer in [0, 9] inclusive
+r.pick([1, 2, 3]);  // → Result<T, EngineError>; err({ kind: "empty_array" }) on empty
+
+const enemies = r.fork("enemies");  // independent substream
+const loot    = r.fork("loot");     // independent substream
+```
+
+## Forking
+
+Forking mixes the parent state with a label hash to derive a child seed. Forks let you advance subsystems independently — if you reorder enemy code one day, the loot RNG stream isn't disturbed. Use forks when you have a clearly-bounded subsystem; one root RNG is fine for small games.
+
+## State + restore for snapshot
+
+```ts
+const s = r.state();   // → number (current internal state, not the seed)
+r.restore(s);          // → identical sequence resumes
+r.seed;                // → original seed
+```
+
+`Snapshot` round-trips `rng_state` and `rng_seed` (see [Storage / persistence](/forge/storage/snapshot-model/)).

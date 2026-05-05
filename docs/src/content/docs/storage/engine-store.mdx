@@ -1,0 +1,46 @@
+---
+title: EngineStore Composite
+description: Multi-store facade for snapshots, bindings, and preferences
+---
+
+Most games want one corpus instance shared across snapshots, bindings, and prefs:
+
+```ts
+import { engine_store } from "@f0rbit/forge/storage";
+
+const store = engine_store({ backend: "file", dir: "./saves" });
+//   ^ EngineStore = {
+//       snapshots: Store<Snapshot>;
+//       bindings:  Store<Bindings>;
+//       prefs:     Store<Prefs>;
+//       corpus():  Corpus;
+//     }
+
+await store.snapshots.save("auto", taken.value);
+await store.bindings.save("default", input.bindings());
+await store.prefs.save("user", { debug_enabled: true, time_scale: 1, autosave: false });
+```
+
+| Sub-store | Type | Default schema |
+|---|---|---|
+| `snapshots` | `Store<Snapshot>` | `snapshot_schema` |
+| `bindings` | `Store<Bindings>` | `bindings_schema` (validates trigger union, axis union, deadzone) |
+| `prefs` | `Store<Prefs>` | `prefs_schema` (`debug_enabled`, `time_scale`, `autosave`) |
+
+Pass into `boot()` so palette `save` / `load` commands work:
+
+```ts
+const r = await boot({
+  mount: "#root",
+  engine_store: store,
+  // ...
+});
+```
+
+## Default options
+
+```ts
+engine_store();                         // mem backend, prefix "forge"
+engine_store({ backend: "mem" });       // explicit
+engine_store({ backend: "file", dir: "./saves", id_prefix: "mygame" });
+```

@@ -1,0 +1,34 @@
+---
+title: "Sprite"
+description: "Display and manipulate sprites with position, anchor, tint, and visibility"
+---
+
+```ts
+import { sprite_c, type SpriteData } from "@f0rbit/forge/pixi";
+
+type SpriteData = {
+  texture: string;                    // alias of an image OR atlas
+  frame?: string;                     // frame name within an atlas
+  anchor?: { x: number; y: number };  // 0–1, sprite-relative pivot
+  tint?: number;                      // 0xRRGGBB
+  visible?: boolean;
+  z?: number;                         // zIndex within world container
+  node?: Sprite | null;               // populated lazily by sprite_sync_system
+};
+
+w.spawn(
+  [pos_c, { x: 80, y: 40 }],
+  [sprite_c, { texture: "hero", anchor: { x: 0.5, y: 1 } }],
+);
+```
+
+## sprite_sync_system
+
+The `sprite_sync_system` (added by `boot` to the `post` stage) watches `(pos_c, sprite_c)` pairs each tick:
+
+- First time it sees an entity: creates a PIXI `Sprite`, adds to the world container, writes back `sd.node`.
+- Resolves the texture: `assets.texture(alias)` first, then atlas `frame` lookup, then *first frame of the atlas* as a last resort. If still nothing, sprite stays without a texture (often visible as a tiny white square or invisible).
+- Updates: position from `pos_c`, anchor / tint / visibility / zIndex from `sprite_c`.
+- Despawn cleanup: any sprite whose entity vanished from the query gets `removeFromParent()` + `destroy()`.
+
+The lazy-mount means you can `w.set(id, sprite_c, {...})` without ever touching PIXI — the system handles the pixi-side construction.

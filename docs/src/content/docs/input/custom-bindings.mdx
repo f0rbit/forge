@@ -1,0 +1,64 @@
+---
+title: Custom Bindings
+description: Define custom key, mouse, and gamepad bindings for your game.
+---
+
+A `Bindings` value has three keys:
+
+```ts
+type Bindings = {
+  digital: Record<Action, readonly Trigger[]>;
+  axes:    Record<Action, readonly AxisBinding[]>;
+  deadzone: number;
+};
+```
+
+## Triggers (digital actions)
+
+```ts
+type Trigger =
+  | { kind: "key";       code: string }                                          // KeyboardEvent.code
+  | { kind: "mouse";     button: 0 | 1 | 2 }                                     // 0=left 1=middle 2=right
+  | { kind: "pad.button"; button: number; pad?: number }                         // pad omitted = any pad
+  | { kind: "pad.axis";   axis: number; pad?: number; threshold?: number; sign?: 1 | -1 };
+```
+
+`pad.axis` as a digital trigger fires when `value * sign >= threshold` (default 0.5). Useful for mapping stick directions to digital actions (e.g., "tilt left stick right" → `move.right`).
+
+## Axis bindings (continuous values)
+
+```ts
+type AxisBinding =
+  | { kind: "key.pair";        positive: string; negative: string }                                  // returns 1, 0, or -1
+  | { kind: "pad.axis";         axis: number; pad?: number; scale?: number; deadzone?: number; invert?: boolean }
+  | { kind: "pad.button.pair"; positive: number; negative: number; pad?: number };
+```
+
+When multiple axis bindings exist for one action, the binding with the **largest absolute value** wins (so a leaning stick doesn't get clobbered by an idle d-pad). The default `deadzone` is `0.15`; per-binding `deadzone` overrides it.
+
+## Building custom bindings
+
+```ts
+import type { Bindings } from "@f0rbit/forge";
+
+const my_bindings: Bindings = {
+  digital: {
+    jump:  [{ kind: "key", code: "Space" }, { kind: "pad.button", button: 0 }],
+    shoot: [{ kind: "mouse", button: 0 }],
+  },
+  axes: {
+    "move.x": [
+      { kind: "key.pair", positive: "KeyD", negative: "KeyA" },
+      { kind: "pad.axis", axis: 0 },
+    ],
+  },
+  deadzone: 0.15,
+};
+```
+
+Apply at any time:
+
+```ts
+input.bind(my_bindings);                  // replace
+input.bind(merge_bindings(input.bindings(), patch));  // patch existing
+```

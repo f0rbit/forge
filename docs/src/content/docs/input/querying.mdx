@@ -1,0 +1,35 @@
+---
+title: Querying Actions
+description: Query input state with pressed(), axis(), vector(), and query() methods.
+---
+
+```ts
+type ActionState = {
+  pressed: boolean;
+  just_pressed: boolean;
+  just_released: boolean;
+  value: number;  // for axes; 1 / 0 for digital
+};
+
+input.pressed("jump");           // boolean
+input.just("jump");              // boolean — true ONLY on the tick of the down-edge
+input.released("jump");          // boolean — true ONLY on the tick of the up-edge
+input.axis("move.x");            // number in [-1, 1]
+input.vector("move.x", "move.y");// readonly [number, number]
+input.query("jump");             // full ActionState
+```
+
+`just` and `released` are **single-tick edges** — they fire on exactly one `advance()` and clear on the next. Don't latch them yourself.
+
+## Inside a system
+
+```ts
+import type { System } from "@f0rbit/forge";
+
+export const player_input_system: System = (w, ctx) => {
+  const [ax, ay] = ctx.input.vector("move.x", "move.y");
+  for (const [id] of w.query([player_c, vel_c] as const)) {
+    w.set(id, vel_c, { dx: ax * speed, dy: ay * speed });
+  }
+};
+```

@@ -1,0 +1,41 @@
+---
+title: Store<T> Interface
+description: Generic, async, slot-keyed storage interface with versioning
+---
+
+Generic, async, slot-keyed:
+
+```ts
+type Store<T> = {
+  save:    (slot: Slot, value: T) => Promise<Result<SaveHandle, StoreError>>;
+  load:    (slot: Slot) => Promise<Result<T, StoreError>>;
+  list:    () => Promise<Result<readonly SaveSlot[], StoreError>>;
+  remove:  (slot: Slot) => Promise<Result<void, StoreError>>;
+  has:     (slot: Slot) => Promise<boolean>;
+  history: (slot: Slot) => AsyncIterable<SaveHandle>;
+};
+```
+
+A `SaveHandle` is the corpus metadata wrapped to carry the slot:
+
+```ts
+type SaveHandle = {
+  slot: Slot;
+  version: string;     // corpus version id (deterministic content hash)
+  content_hash: string;
+  created_at: Date;
+  parent: SaveHandle | null;
+};
+```
+
+Multiple saves to the same slot **append a new corpus version** with `parents` pointing at the previous one. `load(slot)` returns the most recent version. `history(slot)` is an async iterator from oldest to newest.
+
+## StoreError cases
+
+```ts
+type StoreError =
+  | { kind: "not_found"; slot: Slot }
+  | { kind: "invalid_data"; issues: readonly string[] }
+  | { kind: "serialisation_failed"; cause: string }
+  | { kind: "backend_error"; operation: string; cause: string };
+```

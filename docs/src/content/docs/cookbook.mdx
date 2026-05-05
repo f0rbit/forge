@@ -1,0 +1,222 @@
+---
+title: Cookbook
+description: Common patterns and recipes for implementing game mechanics
+---
+
+## Movement: input → vel → pos
+
+```ts
+import type { System } from "@f0rbit/forge";
+import { pos_c } from "@f0rbit/forge";
+import { player_c, vel_c } from "./components.ts";
+
+const speed = 80;
+
+export const player_input_system: System = (w, ctx) => {
+  const [ax, ay] = ctx.input.vector("move.x", "move.y");
+  for (const [id] of w.query([player_c, vel_c] as const)) {
+    w.set(id, vel_c, { dx: ax * speed, dy: ay * speed });
+  }
+};
+
+export const movement_system: System = (w, ctx) => {
+  const dt = ctx.time.fixed_dt;
+  for (const [, p, v] of w.query([pos_c, vel_c] as const)) {
+    p.x += v.dx * dt;
+    p.y += v.dy * dt;
+  }
+};
+```
+
+## Collision (radius)
+
+```ts
+const radius_sq = 8 * 8;
+
+export const collection_system: System = (w, ctx) => {
+  const players = w.query([pos_c, player_c] as const).collect();
+  if (players.length === 0) return;
+  const score = ctx.res.get(score_r);
+  if (!score.ok) return;
+
+  for (const [, pp] of players) {
+    for (const [cid, cp] of w.query([pos_c, coin_c] as const).collect()) {
+      const dx = pp.x - cp.x;
+      const dy = pp.y - cp.y;
+      if (dx * dx + dy * dy <= radius_sq) {
+        w.despawn(cid);
+        score.value.value += 10;
+      }
+    }
+  }
+};
+```
+
+## Collision (AABB)
+
+```ts
+const aabb_overlap = (a: { x: number; y: number; w: number; h: number }, b: typeof a): boolean =>
+  a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+
+const box_c = component<{ w: number; h: number }>("box");
+
+export const aabb_system: System = w => {
+  const players = w.query([pos_c, box_c, player_c] as const).collect();
+  for (const [, pp, pb] of players) {
+    const pbox = { x: pp.x, y: pp.y, w: pb.w, h: pb.h };
+    for (const [eid, ep, eb] of w.query([pos_c, box_c, enemy_c] as const).collect()) {
+      const ebox = { x: ep.x, y: ep.y, w: eb.w, h: eb.h };
+      if (aabb_overlap(pbox, ebox)) w.despawn(eid);
+    }
+  }
+};
+```
+
+## Level setup (startup system)
+
+```ts
+import type { System } from "@f0rbit/forge";
+
+export const setup: System = (w, ctx) => {
+  if (!ctx.res.has(score_r)) ctx.res.set(score_r, { value: 0 });
+
+  w.spawn(
+    [pos_c, { x: 40, y: 90 }],
+    [vel_c, { dx: 0, dy: 0 }],
+    [player_c, true],
+  );
+  for (const x of [120, 160, 200, 240, 280]) {
+    w.spawn([pos_c, { x, y: 90 }], [coin_c, true]);
+  }
+};
+
+sch.add("startup", setup, "level.setup");
+```
+
+## Win/lose state (phase resource)
+
+```ts
+import { resource, type ResKey } from "@f0rbit/forge";
+
+type Phase = { state: "playing" | "won" | "lost" };
+const phase_r: ResKey<Phase> = resource<Phase>("phase");
+
+const startup: System = (_, ctx) => ctx.res.set(phase_r, { state: "playing" });
+
+const win_check: System = (w, ctx) => {
+  const phase = ctx.res.get(phase_r);
+  if (!phase.ok || phase.value.state !== "playing") return;
+  const remaining = w.query([coin_c] as const).collect().length;
+  if (remaining === 0) phase.value.state = "won";
+};
+```
+
+## Spawn-on-event (event queue resource)
+
+```ts
+type SpawnEvent = { kind: "enemy"; x: number; y: number };
+const spawn_q_r: ResKey<{ events: SpawnEvent[] }> = resource("spawn_queue");
+
+const startup: System = (_, ctx) => ctx.res.set(spawn_q_r, { events: [] });
+
+// producer
+const trigger: System = (w, ctx) => {
+  const q = ctx.res.get(spawn_q_r);
+  if (q.ok && ctx.time.tick % 120 === 0) {
+    q.value.events.push({ kind: "enemy", x: ctx.rng.int(0, 320), y: 0 });
+  }
+};
+
+// consumer (drain at start of update)
+const consume: System = (w, ctx) => {
+  const q = ctx.res.get(spawn_q_r);
+  if (!q.ok) return;
+  for (const ev of q.value.events) {
+    if (ev.kind === "enemy") w.spawn([pos_c, { x: ev.x, y: ev.y }], [enemy_c, true]);
+  }
+  q.value.events.length = 0;
+};
+
+sch.add("pre",    consume, "spawn.consume");
+sch.add("update", trigger, "spawn.trigger");
+```
+
+## Score persistence
+
+```ts
+import { engine_store } from "@f0rbit/forge/storage";
+import { z } from "zod";
+
+const highscore_schema = z.object({ value: z.number() });
+const store = engine_store({ backend: "file", dir: "./saves" });
+
+// ad-hoc Store<T> via `store({...})` — but for the engine_store stack you'd
+// register the schema differently. For ad-hoc top-level keys use `mem` or `file`:
+import { file } from "@f0rbit/forge/storage";
+const highscore_store = file({ dir: "./saves", schema: highscore_schema });
+
+await highscore_store.save("default", { value: 1200 });
+const loaded = await highscore_store.load("default");
+if (loaded.ok) console.log("hi", loaded.value.value);
+```
+
+## Animation cycling
+
+```ts
+import { anim, anim_c } from "@f0rbit/forge";
+
+const a = anim();
+sch.add("update", a.advance, "anim.advance");
+
+w.set(player, anim_c, {
+  atlas: "hero",
+  sequence: "idle",
+  frame: 0, t: 0, speed: 1, loop: true, done: false,
+});
+
+// later:
+const r = a.play(w, player, "walk");
+if (!r.ok) console.warn("anim play failed", r.error);
+```
+
+## Periodic systems
+
+There is **no** `schedule.add_periodic(N, sys)` helper yet. Gate manually:
+
+```ts
+const slow_system: System = (w, ctx) => {
+  if (ctx.time.tick % 30 !== 0) return;  // every 30 ticks (= 0.5s at 60Hz)
+  // ...
+};
+```
+
+(*Candidate addition for future versions — flag this if you find yourself doing it a lot.*)
+
+## Plugin pattern
+
+The `(world, schedule) => void` plugin shape is the canonical way to package a feature:
+
+```ts
+import type { Schedule, World } from "@f0rbit/forge";
+
+export const game_plugin = (_w: World, sch: Schedule): void => {
+  sch.add("startup", setup,                "coin.setup");
+  sch.add("update",  player_input_system,  "coin.input");
+  sch.add("update",  movement_system,      "coin.movement");
+  sch.add("update",  collection_system,    "coin.collect");
+};
+```
+
+Then in `main.ts`:
+
+```ts
+const r = await boot({...});
+if (r.ok) game_plugin(r.value.world, r.value.schedule);
+```
+
+And in tests:
+
+```ts
+const h = harness({...});
+game_plugin(h.world, h.schedule);
+```

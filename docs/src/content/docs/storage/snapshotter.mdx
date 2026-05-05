@@ -1,0 +1,58 @@
+---
+title: Snapshotter
+description: Registration, serialization, and take/restore round-trips
+---
+
+## The snapshotter
+
+`snapshotter()` returns a registry. Register components and resources you want serialized:
+
+```ts
+import { snapshotter, pos_c, type Snapshotter } from "@f0rbit/forge";
+import { z } from "zod";
+import { player_c, coin_c, vel_c } from "./components.ts";
+import { score_r, type Score } from "./resources.ts";
+
+const pos_schema   = z.object({ x: z.number(), y: z.number() });
+const vel_schema   = z.object({ dx: z.number(), dy: z.number() });
+const score_schema = z.object({ value: z.number() });
+
+const snap: Snapshotter = snapshotter()
+  .register(pos_c,   pos_schema)
+  .register(vel_c,   vel_schema)
+  .register(player_c, z.literal(true))
+  .register(coin_c,   z.literal(true))
+  .register_resource(score_r, score_schema);
+```
+
+Schemas are optional — pass nothing and `take`/`restore` skip validation. With schemas, `take` and `restore` return `err({ kind: "snapshot_validation_failed", issues })` if any value is rejected.
+
+## Take / restore round-trip
+
+```ts
+const taken = snap.take(world, { time, rng, res });
+if (!taken.ok) console.error(taken.error);
+
+// later, possibly in a different process:
+const restored = snap.restore(world, taken.value, { time, rng, res });
+if (!restored.ok) console.error(restored.error);
+```
+
+`restore` calls `world[internal].clear()` first, then re-spawns each entity at its *original* id via `spawn_at`. After `restore`:
+
+- `time.tick` is set to `snap.meta.tick`.
+- `rng` state is restored.
+- Every registered resource is set from the snapshot.
+
+`opts.time` and `opts.rng` are optional during restore — pass them when you want kernel state restored, omit when you only want world state.
+
+`save(world, snap, store, slot, opts)` and `load(world, snap, store, slot, opts)` (from `@f0rbit/forge/storage`) compose `snapshotter` with a `Store<Snapshot>` for the common case:
+
+```ts
+import { save, load } from "@f0rbit/forge/storage";
+
+await save(world, snap, store, "auto", { time, rng, res });
+await load(world, snap, store, "auto", { time, rng, res });
+```
+
+Both return `Result<..., SaveError>` where `SaveError = { kind: "snapshot"; cause } | { kind: "store"; cause }`.

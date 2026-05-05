@@ -1,0 +1,59 @@
+---
+title: Input Sources
+description: Connect raw input streams from DOM, gamepad, or scripted events.
+---
+
+| Source | Subpath | Use for |
+|---|---|---|
+| `noop_source()` | `@f0rbit/forge` | Default; no events ever produced. |
+| `scripted(events)` | `@f0rbit/forge` | Test fixtures — push raw events all at once. |
+| `ticked(frames, get_tick)` | `@f0rbit/forge` | Per-tick scripted events keyed by frame number. |
+| `browser_source(opts?)` | `@f0rbit/forge/pixi` | DOM `KeyboardEvent` / `MouseEvent` / `WheelEvent` plus 4 polled gamepads. |
+
+## Browser source
+
+`browser_source` is set automatically by `boot()` against `globalThis.window`. Standalone:
+
+```ts
+import { browser_source } from "@f0rbit/forge/pixi";
+
+const src = browser_source({
+  target: window,                  // EventTarget; defaults to globalThis.window
+  pads: "all",                     // or readonly [0, 1] etc.
+  deadzone: 0.15,
+  get_time: () => time.tick,       // stamped into every RawInput.t
+});
+input.source(src);
+// ...later...
+src.dispose();
+```
+
+## Raw input shape
+
+`RawInput` is a discriminated union of 9 variants:
+
+```ts
+| { kind: "key.down";        code: string;     pad: null;    t: number }
+| { kind: "key.up";          code: string;     pad: null;    t: number }
+| { kind: "mouse.down";      button: 0|1|2;    x: number; y: number; pad: null; t: number }
+| { kind: "mouse.up";        button: 0|1|2;    x: number; y: number; pad: null; t: number }
+| { kind: "mouse.move";      x: number; y: number; pad: null; t: number }
+| { kind: "wheel";           dx: number; dy: number; pad: null; t: number }
+| { kind: "pad.button.down"; button: number;   pad: PadIndex; t: number }
+| { kind: "pad.button.up";   button: number;   pad: PadIndex; t: number }
+| { kind: "pad.axis";        axis: number; value: number; pad: PadIndex; t: number };
+```
+
+`PadIndex = 0 | 1 | 2 | 3`. Pad button events also write a wildcard `*:button` slot, so `{ kind: "pad.button", button: 0 }` (no `pad`) matches any pad.
+
+## Subscribing to input events
+
+```ts
+const off = input.on_raw(events => log_them(events));
+const off2 = input.on_pre_advance(() => save_prev_state());
+const off3 = input.on_advance(() => write_replay_frame());
+
+off();  // unsubscribe
+```
+
+`on_pre_advance` fires *before* state is mutated by the source drain — replay playback hooks here to **inject** action overrides via `inject_actions` before the source's events overwrite anything. `on_advance` fires *after* state is fully refreshed — replay recording reads the action state here and diffs against the previous tick.

@@ -1,0 +1,21 @@
+---
+title: Per-Entity Pins
+description: Persistent overlay annotations with TTL tracking
+---
+
+Pins survive frames (until their TTL elapses), so they're for **persistent overlay annotations**, not one-off shapes:
+
+```ts
+debug.pin(entity, { kind: "label", data: "boss", ttl: 120 });   // 120 ticks
+debug.pin(entity, { kind: "box",   data: { w: 16, h: 16 } });   // default ttl 60
+debug.pin(entity, { kind: "arrow", data: { tx: 50, ty: 50 } });
+
+debug.pinned(entity);   // → readonly Pin[] for that entity
+debug.pinned();          // → readonly Pin[] across all entities
+debug.unpin(entity, "label");  // remove one kind
+debug.unpin(entity);            // remove all kinds for the entity
+```
+
+`PinKind = "label" | "box" | "arrow"` — three slots per entity. A second pin of the same kind overwrites the first.
+
+TTL: the debug system bumps `cur_tick` on `tick_stats(world, time)` and expires pins where `cur_tick - added_tick >= ttl`. `ttl: 0` means "live forever". The PIXI debug renderer renders pins as text every frame.

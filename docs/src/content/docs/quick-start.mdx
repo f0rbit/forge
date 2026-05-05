@@ -1,0 +1,63 @@
+---
+title: Quick Start
+description: Get @f0rbit/forge installed and running with a minimal example in under 30 lines.
+---
+
+```sh
+bun add @f0rbit/forge
+bun add pixi.js   # only needed for @f0rbit/forge/pixi
+```
+
+Subpath exports:
+
+```ts
+import { /* engine core */ } from "@f0rbit/forge";
+import { presets }            from "@f0rbit/forge/presets";
+import { /* debug types */ }  from "@f0rbit/forge/debug";
+import { engine_store }       from "@f0rbit/forge/storage";
+import { boot, sprite_c }     from "@f0rbit/forge/pixi";
+```
+
+Minimal "hello sprite" — under 30 lines:
+
+```ts
+import { component, pos_c } from "@f0rbit/forge";
+import { boot, sprite_c }   from "@f0rbit/forge/pixi";
+import { presets }          from "@f0rbit/forge/presets";
+
+const player_c = component<true>("player");
+
+const r = await boot({
+  mount: "#root",
+  window: { width: globalThis.innerWidth, height: globalThis.innerHeight },
+  camera: { design: { width: 320, height: 180 }, mode: "letterbox" },
+  bindings: presets.movement2d,
+});
+if (!r.ok) throw new Error(`boot failed: ${r.error.kind}`);
+const app = r.value;
+
+app.world.spawn(
+  [pos_c, { x: 160, y: 90 }],
+  [player_c, true],
+  [sprite_c, { texture: "__default__", frame: "__default_0__", anchor: { x: 0.5, y: 0.5 } }],
+);
+
+app.schedule.add("update", (w, ctx) => {
+  const [dx, dy] = ctx.input.vector("move.x", "move.y");
+  for (const [, p] of w.query([pos_c, player_c] as const)) {
+    p.x += dx * 60 * ctx.time.fixed_dt;
+    p.y += dy * 60 * ctx.time.fixed_dt;
+  }
+}, "player.move");
+
+app.start();
+```
+
+For a real, end-to-end consumer with replay tests, level setup, persistence, and a build pipeline, see the **`coin-collector`** repo (the canonical example):
+
+- `src/main.ts` — pixi bootstrap
+- `src/plugin.ts` — `(world, schedule) => void` install pattern
+- `src/level.ts` — startup system spawning entities
+- `src/systems/movement.ts` + `src/systems/collection.ts` — gameplay systems
+- `tools/record-win.ts` — recording a deterministic replay from headless
+- `test/replay.test.ts` — replay-as-fixture pattern

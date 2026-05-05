@@ -1,0 +1,22 @@
+---
+title: Backends
+description: Memory and file-system storage backends
+---
+
+```ts
+import { mem, file } from "@f0rbit/forge/storage";
+import { z } from "zod";
+
+const score_schema = z.object({ value: z.number() });
+
+const m = mem({ schema: score_schema });           // in-process, lost on exit
+const f = file({ dir: "./saves", schema: score_schema });  // local fs
+```
+
+Both return `Store<T>`. The `id` option lets you namespace stores within the same backend (default `"forge.snapshot"`).
+
+`mem` is corpus's memory backend — fully featured: lineage tracking, content-addressed versioning, list/history all work. Use it in tests.
+
+`file` is corpus's file-system backend — files under `<dir>/<store_id>/<version>` plus a metadata sidecar. Use it for desktop builds or local dev.
+
+**IndexedDB is explicitly post-v1.** When the browser-storage backend lands in `@f0rbit/corpus`, the same `Store<T>` interface works — no engine changes needed.

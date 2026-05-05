@@ -1,0 +1,28 @@
+---
+title: Action Model
+description: Forge's action-first input layer maps raw events through bindings to game actions.
+---
+
+Forge's input layer is **action-first**: raw events (`KeyboardEvent.code`, gamepad axes, mouse buttons) flow into an `Input` instance via an `InputSource`, get *mapped* through `Bindings`, and your game queries the resulting actions (`"jump"`, `"move.x"`).
+
+```
+[ DOM / Gamepad / scripted ]
+        │  raw events
+        ▼
+    InputSource ─── drain() ──► Input.advance ─── refresh ──► action state
+                                                                │
+                                                                ▼
+                                                          input.pressed("jump")
+                                                          input.axis("move.x")
+                                                          input.vector("move.x", "move.y")
+```
+
+The flow has three stable boundaries:
+
+1. **Source** — a transport (`browser_source`, `scripted`, `noop_source`). Provides `drain(): readonly RawInput[]`.
+2. **Bindings** — a `Record<Action, readonly Trigger[]>` and a parallel `Record<Action, readonly AxisBinding[]>`. Pure data; safe to serialize.
+3. **Input** — holds current key/axis/button state, resolves actions on every `advance()`.
+
+## Why the indirection?
+
+Replays record *actions*, not keystrokes. Same recording plays back identically whether the user uses WASD or a gamepad; whether the keyboard layout is QWERTY or Dvorak; whether the future-you renames `KeyA` to something else. Action streams are also far smaller (one event per state transition vs. one per keypress).

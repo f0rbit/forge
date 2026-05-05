@@ -1,0 +1,21 @@
+---
+title: "Pixel Perfect & Smoothing"
+description: "Control scaling behavior and texture filtering for crisp pixel art or smooth graphics"
+---
+
+```ts
+camera: {
+  design: { width: 320, height: 180 },
+  mode: "letterbox",
+  pixel_perfect: true,   // default true; floor scale to integer
+  smoothing: false,      // default false; use "nearest" texture filtering
+}
+```
+
+Pixel-art games: leave defaults. High-resolution assets: `pixel_perfect: false, smoothing: true`. The renderer flips PIXI's default `TextureSource.scaleMode` and the surface render-texture's `scaleMode` based on `smoothing`.
+
+If `pixel_perfect: true` but the window is *smaller* than the design viewport, the camera falls back to fractional scale and emits a `console.warn` in dev:
+
+```
+forge.camera: window 240x140 smaller than design 320x180; falling back to fractional scale 0.750 (pixel_perfect ignored)
+```

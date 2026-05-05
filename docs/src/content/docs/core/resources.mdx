@@ -1,0 +1,39 @@
+---
+title: Resources
+description: Typed singleton storage for world-wide data keyed by global symbols.
+---
+
+Resources are typed singletons keyed by a global symbol. Use them for data that's *world-wide* (score, level info, atlas registry) rather than per-entity.
+
+```ts
+import { resource, resources, type ResKey } from "@f0rbit/forge";
+
+type Score = { value: number };
+const score_r: ResKey<Score> = resource<Score>("coin.score");
+
+const res = resources();
+res.set(score_r, { value: 0 });
+res.has(score_r);     // → true
+const r = res.get(score_r);
+if (r.ok) r.value;    // → { value: 0 }
+res.remove(score_r);
+```
+
+`resource<T>(name)` uses `Symbol.for("forge.resource:<name>")` — same cross-bundle identity guarantee as components.
+
+| Method | Return |
+|---|---|
+| `set(k, v)` | `void` |
+| `get(k)` | `Result<T, { kind: "resource_missing"; resource: string }>` |
+| `has(k)` | `boolean` |
+| `remove(k)` | `void` |
+
+## When to use a resource vs a component
+
+| Use a resource when... | Use a component when... |
+|---|---|
+| There's exactly one of it (game phase, score, atlas registry, event queue). | There can be many, indexed by entity. |
+| Systems read/write it without iterating entities. | Iteration semantics matter. |
+| You'd otherwise spawn a "global" entity to hold it. | Storage is naturally per-entity. |
+
+Built-in resources: `atlas_registry` (compiled atlases for the anim system) and `anim_events` (event buffer for `finished` / `looped` events).

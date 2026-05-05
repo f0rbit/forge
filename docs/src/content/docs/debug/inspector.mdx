@@ -1,0 +1,18 @@
+---
+title: Inspector
+description: Query and inspect entity components at runtime
+---
+
+```ts
+type Inspection = {
+  entity: Id;
+  components: readonly { name: string; data: unknown }[];
+};
+
+const i = debug.inspect(world, entity);
+// → { entity: 5, components: [{ name: "pos", data: { x: 80, y: 40 } }, { name: "vel", data: ... }] }
+```
+
+The palette `inspect` command formats this into a printable string.
+
+`debug.select(id)` and `debug.selected()` track a selected entity for tools — useful when wiring a click-to-select feature in dev mode.

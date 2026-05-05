@@ -1,0 +1,14 @@
+---
+title: Search & History
+description: Fuzzy search and command history recall
+---
+
+```ts
+p.search("sa");              // → [{ command: save_cmd, score: 0.83 }, ...]
+p.history();                 // → readonly string[]
+p.clear_history();
+p.recall(1);                 // most recent line
+p.recall(2);                 // second most recent
+```
+
+`fuzzy_score` ranks by character-level prefix match with bonuses for consecutive runs. Ties break alphabetically. The PIXI palette shows up to 6 hits below the prompt.

@@ -1,0 +1,24 @@
+---
+title: Versioning
+description: Version policy and publishing workflow for @f0rbit/forge
+---
+
+## Pre-1.0 policy
+
+`@f0rbit/forge` is **0.1.x** and breaking changes can land in any patch bump. The user is the only published consumer (`coin-collector`) so churn is cheap. The `CHANGELOG.md` will spell out what broke each release.
+
+This policy ends at 1.0. Until then:
+
+- Pin to an exact patch version (`"@f0rbit/forge": "0.1.4"`) if you want stability.
+- Use a caret range (`"^0.1.4"`) and live with possible breakage on `0.2.x`.
+- Watch the `CHANGELOG.md` before upgrading.
+
+## Publish flow
+
+The repo publishes via GitHub Actions OIDC trusted publisher — no `NPM_TOKEN` in the repo. Workflow:
+
+1. Bump `package.json` version + add a changeset entry.
+2. Push to `main`.
+3. CI runs typecheck + tests + build, then `npm publish`. If the version on `main` already exists on npm, publish-skip is a no-op (intended — docs-only commits don't churn npm).
+
+You don't publish manually. (Don't try.)

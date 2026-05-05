@@ -1,0 +1,32 @@
+---
+title: Rebinding
+description: Allow players to rebind controls at runtime and persist via storage.
+---
+
+## Palette commands
+
+The palette ships `bind` and `unbind` commands:
+
+```
+> bind jump Space
+bound jump -> Space
+
+> bind shoot mouse:0
+bound shoot -> mouse:0
+
+> unbind jump
+unbound jump
+```
+
+## Persisting bindings
+
+```ts
+import { engine_store } from "@f0rbit/forge/storage";
+
+const store = engine_store();
+await store.bindings.save("default", input.bindings());
+const loaded = await store.bindings.load("default");
+if (loaded.ok) input.bind(loaded.value);
+```
+
+`engine_store.bindings` is a `Store<Bindings>` — same interface as `snapshots` (see the Storage section).

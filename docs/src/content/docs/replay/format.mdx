@@ -1,0 +1,66 @@
+---
+title: Format and Semantics
+description: Replay file format and playback semantics with JSON/Zod validation.
+---
+
+## Playback semantics
+
+Playback injects actions into the input stream before source events are drained. This ensures the world evolves identically to the original recording when seed, code, and `fixed_dt` all match.
+
+## File format
+
+```ts
+type ReplayDoc = {
+  version: 1;
+  seed: number;
+  fixed_dt: number;
+  frames: ReadonlyArray<{ tick: number; events: readonly ActionEvent[] }>;
+};
+
+type ActionEvent =
+  | { kind: "press";   action: string; tick: number }
+  | { kind: "release"; action: string; tick: number }
+  | { kind: "axis";    action: string; value: number; tick: number };
+```
+
+Validated by `replay.schema` (a Zod schema). Frames are **sparse** — only ticks with at least one transition are stored, sorted by `tick`.
+
+## Example file
+
+A `coin-collector` win replay:
+
+```json
+{
+  "version": 1,
+  "seed": 1,
+  "fixed_dt": 0.016666666666666666,
+  "frames": [
+    { "tick": 0, "events": [{ "kind": "axis", "action": "move.x", "value": 1, "tick": 0 }] },
+    { "tick": 152, "events": [{ "kind": "axis", "action": "move.x", "value": 0, "tick": 152 }] }
+  ]
+}
+```
+
+## Save and load
+
+```ts
+const json = replay.save(doc);                  // → string
+const r = replay.load(json);                    // → Result<ReplayDoc, ReplayError>
+if (r.ok) play(r.value);
+else if (r.error.kind === "replay_parse_error") /* malformed JSON */;
+else if (r.error.kind === "replay_validation_error") /* bad shape */;
+```
+
+`replay.save` is `JSON.stringify`. `replay.load` parses, then validates against the Zod schema and returns `Result<ReplayDoc, ReplayError>`.
+
+### Using pipe chains
+
+A `pipe()` chain alternative:
+
+```ts
+import { pipe } from "@f0rbit/corpus";
+
+const result = pipe(replay.load(json))
+  .map(doc => ({ doc, sim: make_sim(doc) }))
+  .build();
+```

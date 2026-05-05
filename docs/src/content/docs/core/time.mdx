@@ -1,0 +1,35 @@
+---
+title: Time
+description: Fixed-timestep accumulator with integer tick counter and deterministic elapsed time.
+---
+
+Forge's clock is a **fixed-timestep accumulator** with an integer `tick` counter.
+
+```ts
+import { time } from "@f0rbit/forge";
+
+const t = time({ fixed_dt: 1 / 60 });
+
+t.advance(0.016);  // → 0 or 1, # of fixed steps consumed this frame
+t.tick;            // → 1 (after a full step)
+t.elapsed;         // → tick * fixed_dt (deterministic; no FP drift)
+t.alpha;           // → leftover accumulator / fixed_dt, [0, 1) for render interpolation
+t.fixed_dt;        // → 0.01666... (the configured step)
+t.scale = 0.5;     // slow-mo (writable)
+t.scale = 0;       // pause
+t.restore(120);    // jump tick to 120 (used by snapshot restore)
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `fixed_dt` | `number` (readonly) | Default `1/60`. Locked at construction. |
+| `tick` | `number` (readonly) | Integer, monotonic. |
+| `elapsed` | `number` (readonly) | `tick * fixed_dt`. **Computed**, not accumulated — no FP drift. |
+| `alpha` | `number` (readonly) | `[0, 1)` interp factor for render. |
+| `scale` | `number` (writable) | Multiplier on `real_dt` before accumulation. |
+| `advance(real_dt)` | `(n: number) => number` | Returns # of ticks consumed (0+). |
+| `restore(tick)` | `(n: number) => void` | Jump and clear the accumulator. |
+
+## Why?
+
+Pre-v0.1 the engine derived `t.elapsed` by adding `fixed_dt` repeatedly, which drifts after ~10⁶ ticks. The integer-tick model multiplies `tick * fixed_dt` on read — exact for the lifetime of any plausible session and **byte-identical** between recording and replay, which is the foundation of the determinism contract.

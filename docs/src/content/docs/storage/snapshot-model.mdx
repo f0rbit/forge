@@ -1,0 +1,35 @@
+---
+title: Snapshot Model
+description: World state and kernel state serialization with Zod validation
+---
+
+A `Snapshot` is the world state plus minimal kernel state, validated by Zod:
+
+```ts
+type Snapshot = {
+  version: 1;
+  meta: {
+    tick: number;
+    rng_state: number;
+    rng_seed: number;
+  };
+  entities: ReadonlyArray<{ id: number; components: Record<string, unknown> }>;
+  resources: Record<string, unknown>;
+};
+```
+
+## What's captured
+
+- Every entity that has at least one **registered** component, with its registered components serialized by name.
+- Every **registered** resource by name.
+- `time.tick`, `rng.state()`, and `rng.seed`.
+
+## What's NOT captured (explicit policy)
+
+- Components you didn't register. (You opt in.)
+- Resources you didn't register.
+- The schedule. (Code defines stages — restore loads data into a *running* schedule.)
+- DOM, PIXI textures, runtime listeners, RAF handles, gamepad state.
+- Anything in `closures` (system-internal `let` bindings, etc.).
+
+The kernel state subset (`tick`, `rng_state`, `rng_seed`) is the minimum needed to replay deterministically from a save.

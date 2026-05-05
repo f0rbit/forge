@@ -1,0 +1,69 @@
+---
+title: "Anim"
+description: "Play animations from atlases with deterministic frame timing and events"
+---
+
+```ts
+import { anim_c, anim, atlas_registry, type AnimData } from "@f0rbit/forge";
+
+type AnimData = {
+  atlas: string;       // atlas alias
+  sequence: string;    // animation name within atlas
+  frame: number;       // current frame index
+  t: number;           // accumulated tick fraction within frame
+  speed: number;       // ticks-per-update multiplier (1 = normal)
+  loop: boolean;
+  done: boolean;
+};
+
+const a = anim();
+sch.add("update", a.advance, "anim.advance");
+
+// give an entity an animation
+w.spawn(
+  [pos_c, { x: 0, y: 0 }],
+  [sprite_c, { texture: "__default__", anchor: { x: 0.5, y: 0.5 } }],
+  [anim_c, { atlas: "__default__", sequence: "spin", frame: 0, t: 0, speed: 1, loop: true, done: false }],
+);
+
+// trigger a different sequence
+a.play(world, entity, "walk", { speed: 2, loop: true });
+a.stop(world, entity);
+a.playing(world, entity);  // → boolean
+```
+
+## Whole-tick frame durations
+
+Atlas JSON `duration` (in ms) is converted at load time to integer ticks via `Math.round((ms / 1000) / fixed_dt)`. So a 100ms frame at `fixed_dt: 1/60` becomes 6 ticks. Determinism depends on this — if you ever change `fixed_dt`, recompile your atlas durations.
+
+## Atlas registry
+
+The `atlas_registry` resource holds `Record<string, Record<string, readonly { frame: string; ticks: number }[]>>`. `boot` populates it with every atlas you load via `assets`. The `anim.advance` system reads from it to look up sequences.
+
+## Events
+
+When a non-loop animation finishes, or a loop animation wraps around, `anim.advance` pushes an event into the `anim_events` resource buffer (if registered):
+
+```ts
+import { anim_events, resources } from "@f0rbit/forge";
+
+const res = resources();
+res.set(anim_events, { events: [] });
+
+// ...later, after schedule.tick:
+const buf = res.get(anim_events);
+if (buf.ok) {
+  for (const ev of buf.value.events) {
+    if (ev.kind === "finished") /* ... */;
+    if (ev.kind === "looped")   /* ... */;
+  }
+}
+```
+
+The buffer is **drained at the start of each `anim.advance` call** — read it within the same tick or it's gone. If you don't register `anim_events`, no events are pushed.
+
+## PIXI integration
+
+`anim_sync_system` (added to `post` by `boot`) reads the current frame from `anim_c`, looks up the corresponding texture in the atlas, and assigns it to the sprite's `Sprite.texture`. It **never** uses PIXI's `AnimatedSprite` — that class ticks on `Ticker`, which is wall-clock and would silently break determinism.
+
+If the atlas alias is missing it falls back to `__default__` and increments `debug.counter("anim.missing_atlas", ...)`. Same fallback path for missing sequences.

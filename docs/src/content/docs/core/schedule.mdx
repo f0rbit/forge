@@ -1,0 +1,34 @@
+---
+title: Schedule
+description: Fixed-order execution of systems in stages — startup, pre, update, post, render.
+---
+
+Stages run in a fixed order each tick: `startup → pre → update → post → render`. `startup` runs once on the first `tick`. The other four run every tick in insertion order.
+
+```ts
+import { schedule } from "@f0rbit/forge";
+
+const sch = schedule();
+
+sch.add("startup", spawn_level,   "level.setup");
+sch.add("update",  player_input,  "player.input");
+sch.add("update",  movement,      "movement");
+sch.add("post",    collisions,    "collisions");
+sch.add("render",  draw_overlays, "ui.overlays");
+
+sch.tick(world, ctx);  // pumps input + runs every stage in order
+```
+
+## Inside `sch.tick`
+
+1. `startup` runs once.
+2. `ctx.input.advance(world, ctx)` — drains the input source, refreshes action state, fires `pre_advance` and `on_advance` listeners (replay hooks live here).
+3. `pre`, `update`, `post`, `render` run in that order. After the `render` stage, `ctx.debug.frame()` is automatically drained (so debug commands always render in the same tick they're issued).
+
+`sch.run(stage, world, ctx)` runs one stage in isolation — useful inside the harness `tick` for headless tests that don't want PIXI render systems to fire.
+
+## Pump auto-firing
+
+The schedule fires `input.advance` before stages and `debug.frame()` after `render` automatically. You don't add input or debug systems by hand — the schedule does it.
+
+The `startup_done` flag is per-`schedule()` instance; if you `clear()` the world via `snapshotter.restore`, startup will not re-fire (this matches "loaded a save → don't re-spawn the level"). Recreate the schedule if you want a fresh startup pass.

@@ -1,0 +1,68 @@
+---
+title: Test Fixtures
+description: Use replays as test fixtures to verify deterministic behavior.
+---
+
+## The canonical pattern
+
+The canonical pattern from `coin-collector/test/replay.test.ts`:
+
+```ts
+import { readFileSync } from "node:fs";
+import { describe, expect, test } from "bun:test";
+import { harness, replay } from "@f0rbit/forge";
+import type { Ctx, ReplayDoc, World } from "@f0rbit/forge";
+import { presets } from "@f0rbit/forge/presets";
+import { game_plugin } from "../src/plugin.ts";
+import { score_r } from "../src/resources.ts";
+import { coin_c, player_c } from "../src/components.ts";
+
+const replay_json = readFileSync(new URL("../replays/win.replay.json", import.meta.url).pathname, "utf8");
+
+const make_sim = (doc: ReplayDoc) => {
+  const h = harness({ seed: doc.seed, fixed_dt: doc.fixed_dt, bindings: presets.movement2d });
+  game_plugin(h.world, h.schedule);
+  replay.play(doc, h.input, () => h.time.tick);
+  return {
+    ctx: h.ctx,
+    w: h.world,
+    tick: () => {
+      h.time.advance(doc.fixed_dt);
+      h.schedule.tick(h.world, h.ctx);
+    },
+  };
+};
+
+const hash_world = (w: World, score: number): string => {
+  const players = w.query([player_c] as const).collect().length;
+  const coins   = w.query([coin_c]   as const).collect().length;
+  return `p=${players}|c=${coins}|s=${score}`;
+};
+
+describe("replay deliverable", () => {
+  test("replay collects 5 coins", () => {
+    const r = replay.load(replay_json);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const sim = make_sim(r.value);
+    for (let i = 0; i < 200; i++) sim.tick();
+    const s = sim.ctx.res.get(score_r);
+    if (s.ok) expect(s.value.value).toBe(50);
+  });
+
+  test("two runs of the same replay produce identical state", () => {
+    const sim_a = make_sim(replay.load(replay_json).value!);
+    const sim_b = make_sim(replay.load(replay_json).value!);
+    for (let i = 0; i < 200; i++) { sim_a.tick(); sim_b.tick(); }
+    const sa = sim_a.ctx.res.get(score_r);
+    const sb = sim_b.ctx.res.get(score_r);
+    const va = sa.ok ? sa.value.value : -1;
+    const vb = sb.ok ? sb.value.value : -1;
+    expect(hash_world(sim_a.w, va)).toBe(hash_world(sim_b.w, vb));
+  });
+});
+```
+
+## The determinism contract
+
+The **determinism contract** says: same `seed` + same `fixed_dt` + same recorded actions + same code → byte-identical world hash on every run. If you ever see drift, it's a `Date.now`/`Math.random`/async bug somewhere — see the Determinism section.

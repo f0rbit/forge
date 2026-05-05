@@ -1,0 +1,72 @@
+---
+title: Troubleshooting
+description: Solutions to common issues and gotchas
+---
+
+## Black canvas
+
+Most likely:
+
+- Entities don't have `sprite_c`. The PIXI sprite-sync watches `(pos_c, sprite_c)` — both required.
+- Wrong `texture` / `frame` alias. Open the palette (\`) and run `inspect <id>` to see the live data.
+- Camera scale is 0 (host window too small). The `compute_scale` fallback kicks in; check the `console.warn`.
+- Forge version. v0.1.1 had a cross-bundle component identity bug — you'd see a black canvas because the `pos_c` from the consumer didn't match the `pos_c` inside `/pixi`. Fixed in v0.1.2 via `Symbol.for`.
+
+## `npm install` fails on peer dep
+
+`pixi.js@^8` is a *peer* dependency. `bun add` is more lenient than `npm` here. If `npm install` complains:
+
+```sh
+npm install pixi.js@^8 @f0rbit/forge
+```
+
+## Cross-bundle component identity
+
+`component("foo") === component("foo")` is true (the `key` symbols match) because both use `Symbol.for("forge.component:foo")`. The same applies to `resource("bar")`.
+
+If you ever see `world.has(id, my_c)` returning `false` when it shouldn't — check that the consumer's component module isn't mismatched (e.g., one bundled with `tsc` flagging strictly while another targets ESM). The `Symbol.for` registry sidesteps this; just don't manually construct `Component` literals (use `component<T>(name)`).
+
+## Frame name conventions
+
+The `__default__` atlas frames are named `__default_0__`, `__default_1__`, `__default_2__`, `__default_3__` — underscore-padded so they sort lexically. Bring-your-own atlases use whatever names your TexturePacker output produces.
+
+`assets.atlas(alias, url)` parses the JSON and reads `frames[name]` and `animations[seq] = ["frame_a", "frame_b", ...]`. The animation names you `play()` must match the JSON keys exactly.
+
+## Query iteration + mutation
+
+If you see this warning:
+
+```
+[forge] world.query([pos, coin]) iterator detected mid-iteration mutation.
+```
+
+You're calling `despawn`, `remove`, or `set` on a component the iterator is tracking, mid-loop. Two fixes:
+
+1. `q.collect()` first: `for (const ... of q.collect()) { w.despawn(...); }`
+2. Restructure the loop to defer the mutation: collect ids into an array, despawn after.
+
+Production builds skip the check — the underlying behavior is the same (undefined iterator state) but you won't see the warning.
+
+## Time vs viewport scale
+
+- **`time.scale`** — game-time multiplier. `0.5` = slow-mo, `2.0` = fast-forward, `0` = paused. Writable.
+- **`camera.viewport().scale`** — pixel scale (integer in pixel-perfect modes). Read-only; controlled by camera mode + window size.
+
+The HUD label is `tscale` (time-scale) — it always reports `time.scale`. The palette command is also `tscale`.
+
+## FP drift on `fixed_dt: 1/60`
+
+Pre-v0.1.x replays might have stored `t.elapsed` as an accumulated float. v0.1.x stores `tick` (int) and computes `elapsed = tick * fixed_dt` on read. If you have an old replay JSON, regenerate it — load it, play it through, save the resulting state. (For action-stream replays this isn't an issue; only snapshot files need migration.)
+
+## `engine_store` save vs ad-hoc store
+
+Two separate ways to use the storage subpath:
+
+- **`engine_store({...})`** — composite of three sub-stores (snapshots, bindings, prefs) over one corpus instance. Use this when you want all engine data in one place.
+- **`mem({ schema })` / `file({ dir, schema })`** — single ad-hoc `Store<T>` for game-defined data (highscores, settings, level unlock state).
+
+You can have both at once. `engine_store` and ad-hoc stores don't share a corpus — they're independent.
+
+## `harness.tick` only runs `update`
+
+By design — most unit tests want minimal state churn. To test render-stage behaviour or the full pipeline, use `h.schedule.tick(h.world, h.ctx)` instead.

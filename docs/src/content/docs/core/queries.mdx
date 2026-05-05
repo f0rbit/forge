@@ -1,0 +1,66 @@
+---
+title: Queries
+description: Generator-backed views over the component stores with three consumption patterns.
+---
+
+`world.query` returns a **generator-backed view** over the underlying stores. Three ways to consume it:
+
+```ts
+const q = w.query([pos_c, vel_c] as const);
+
+// 1. for...of (live iterator)
+for (const [id, p, v] of q) {
+  p.x += v.dx;  // safe: in-place updates of existing components
+}
+
+// 2. .each callback
+q.each((id, p, v) => { p.x += v.dx; });
+
+// 3. .collect() snapshot
+for (const [id, p, v] of q.collect()) {
+  if (p.x > 100) w.despawn(id);  // safe — the array was captured first
+}
+```
+
+## Mutation safety
+
+`set`-ting the same entity in a component already in the iterator is fine. Adding/removing the *keyset* — `despawn`, `remove`, or `set` on a *new* entity for one of the iterated components — invalidates the iterator. Always `.collect()` before structural mutation.
+
+In `__DEV__` builds, the iterator tracks the version of every iterated store. If it changes mid-iteration, you get:
+
+```
+[forge] world.query([pos, coin]) iterator detected mid-iteration mutation.
+Snapshot via .collect() before mutating to avoid undefined behaviour.
+```
+
+Production builds (`NODE_ENV=production` or `globalThis.__DEV__ = false`) skip the check entirely.
+
+The canonical *collect-then-mutate* pattern from `coin-collector/src/systems/collection.ts`:
+
+```ts
+export const collection_system: System = (w, ctx) => {
+  const players = w.query([pos_c, player_c] as const).collect();
+  if (players.length === 0) return;
+  const score = ctx.res.get(score_r);
+  if (!score.ok) return;
+
+  for (const [, pp] of players) {
+    for (const [cid, cp] of w.query([pos_c, coin_c] as const).collect()) {
+      const dx = pp.x - cp.x;
+      const dy = pp.y - cp.y;
+      if (dx * dx + dy * dy <= radius_sq) {
+        w.despawn(cid);
+        score.value.value += 10;
+      }
+    }
+  }
+};
+```
+
+## Query options
+
+The `without` option excludes entities that have any of the listed components:
+
+```ts
+const dead = w.query([pos_c] as const, { without: [alive_c] }).collect();
+```

@@ -1,0 +1,24 @@
+---
+title: HUD Stats
+description: Runtime statistics and performance monitoring
+---
+
+```ts
+type DebugStats = {
+  tick: number;
+  entities: number;
+  fps: number;
+  tscale: number;          // time.scale (writable on time, mirrored here)
+  system_us: Record<string, number>;
+};
+
+debug.stats();              // → DebugStats (live reference)
+debug.tick_stats(world, time, fps?);   // bumps tick + entities, optionally sets fps
+debug.timing("collisions", 87);        // record a system's microsecond cost
+debug.counter("pickups", 3);           // arbitrary named counter
+debug.counters();                       // → Record<string, number | string>
+```
+
+The PIXI render system computes a smoothed real-time fps via `performance.now()` (allowed inside `src/pixi/`) and writes it into `debug.stats().fps` every frame. **`__DEV__`-gated** — production builds skip the calc.
+
+The HUD label is `tscale` (time-scale — writable, slow-mo) to disambiguate from viewport scale (`camera.viewport().scale` — pixel scale).
