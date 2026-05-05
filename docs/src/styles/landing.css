@@ -1,0 +1,10 @@
+/* Landing page shell — scoped to .landing-page so it doesn't leak into docs pages. */
+
+.landing-page {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	width: 100%;
+	max-width: 1000px;
+	margin: 0 auto;
+}

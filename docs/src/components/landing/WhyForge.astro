@@ -1,0 +1,80 @@
+---
+import Section from "./Section.astro";
+import { Workflow, Package2, Terminal, GitBranch } from "lucide-astro";
+
+const reasons = [
+	{
+		Icon: Workflow,
+		title: "Orchestrator-friendly",
+		description:
+			"The schedule is a flat record of insertion-ordered systems. Plugins are install functions over (world, schedule). Composition all the way down — easy to reason about, easy to test.",
+	},
+	{
+		Icon: Package2,
+		title: "Single shipped package",
+		description:
+			"One npm install gets the whole engine. Five subpath exports keep the surface curated: core, pixi, debug, storage, presets. Nothing leaks accidentally.",
+	},
+	{
+		Icon: Terminal,
+		title: "Terminal-first dev",
+		description:
+			"No GUI editor, no node-graph, no scripting language. Vim plus the in-game palette. bun test plus replay JSON. Edit TypeScript, restart, replay.",
+	},
+	{
+		Icon: GitBranch,
+		title: "Replay as fixture",
+		description:
+			"Action streams are the recording, not raw events. Save a winning run once, replay it on every CI. Bug repros become 12-second JSON files.",
+	},
+];
+---
+
+<Section title="Why forge?" bordered>
+	<div class="reason-grid">
+		{reasons.map((reason) => (
+			<div class="card card-flat">
+				<div class="row">
+					<div class="card-icon">
+						<reason.Icon aria-hidden="true" />
+					</div>
+					<h3 class="card-title">{reason.title}</h3>
+				</div>
+				<p class="card-description">{reason.description}</p>
+			</div>
+		))}
+	</div>
+</Section>
+
+<style>
+	.reason-grid {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: var(--space-md);
+	}
+
+	.card-icon {
+		margin-bottom: var(--space-sm);
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.5rem;
+		height: 1.5rem;
+		color: var(--fg);
+	}
+
+	.card-icon :global(svg) {
+		width: 1.25rem;
+		height: 1.25rem;
+	}
+
+	.card-title {
+		margin-bottom: var(--space-xs);
+	}
+
+	@media (max-width: 600px) {
+		.reason-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

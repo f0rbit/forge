@@ -1,0 +1,93 @@
+---
+import Section from "./Section.astro";
+import { Code } from "astro-expressive-code/components";
+import { Package, Rocket, Play } from "lucide-astro";
+
+const steps = [
+	{
+		Icon: Package,
+		title: "Install",
+		code: `bun add @f0rbit/forge
+bun add pixi.js   # only for @f0rbit/forge/pixi`,
+		lang: "bash" as const,
+	},
+	{
+		Icon: Rocket,
+		title: "Boot",
+		code: `import { component, pos_c } from "@f0rbit/forge";
+import { boot, sprite_c }   from "@f0rbit/forge/pixi";
+import { presets }          from "@f0rbit/forge/presets";
+
+const player_c = component<true>("player");
+
+const r = await boot({
+  mount: "#root",
+  window: { width: globalThis.innerWidth, height: globalThis.innerHeight },
+  camera: { design: { width: 320, height: 180 }, mode: "letterbox" },
+  bindings: presets.movement2d,
+});
+if (!r.ok) throw new Error(\`boot failed: \${r.error.kind}\`);
+const app = r.value;`,
+		lang: "typescript" as const,
+	},
+	{
+		Icon: Play,
+		title: "Play",
+		code: `app.world.spawn(
+  [pos_c, { x: 160, y: 90 }],
+  [player_c, true],
+  [sprite_c, { texture: "__default__", frame: "__default_0__", anchor: { x: 0.5, y: 0.5 } }],
+);
+
+app.schedule.add("update", (w, ctx) => {
+  const [dx, dy] = ctx.input.vector("move.x", "move.y");
+  for (const [, p] of w.query([pos_c, player_c] as const)) {
+    p.x += dx * 60 * ctx.time.fixed_dt;
+    p.y += dy * 60 * ctx.time.fixed_dt;
+  }
+}, "player.move");
+
+app.start();`,
+		lang: "typescript" as const,
+	},
+];
+---
+
+<Section title="Quick start" bordered id="quick-start">
+	<div class="stepper stepper-vertical">
+		{steps.map((step, index) => (
+			<div class="step vertical-connector-item">
+				<div class="step-indicator vertical-indicator">
+					<step.Icon aria-hidden="true" />
+				</div>
+				<div class="step-content vertical-content">
+					<div class="step-title">{step.title}</div>
+					<Code code={step.code} lang={step.lang} />
+				</div>
+				{index < steps.length - 1 && <div class="step-connector vertical-connector" />}
+			</div>
+		))}
+	</div>
+</Section>
+
+<style>
+	.step-indicator :global(svg) {
+		width: 1rem;
+		height: 1rem;
+	}
+
+	.step-content :global(.expressive-code) {
+		margin: var(--space-sm) 0 0 0;
+	}
+
+	.step-content :global(.expressive-code .frame) {
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+		box-shadow: none;
+	}
+
+	.step-content :global(.expressive-code pre) {
+		background: var(--code-background, var(--bg-alt)) !important;
+		border: none;
+	}
+</style>

@@ -1,0 +1,171 @@
+---
+import Section from "./Section.astro";
+import { ShieldCheck } from "lucide-astro";
+---
+
+<Section bordered>
+	<div class="callout">
+		<div class="callout-header">
+			<div class="callout-icon">
+				<ShieldCheck aria-hidden="true" />
+			</div>
+			<div>
+				<h2 class="callout-title">Determinism contract</h2>
+				<p class="callout-tagline">
+					Same seed plus same fixed_dt plus same recorded action stream plus same code
+					equals byte-identical world hash on every run.
+				</p>
+			</div>
+		</div>
+
+		<p class="callout-body">
+			This is the engine's hard guarantee and the foundation of replay-as-fixture testing.
+			Replay tests are cheap regression coverage — record a winning run once, replay it on
+			every CI. Save/load round-trips are bit-exact. Bug repros become "run this 12-second
+			JSON against the latest code" instead of "WASD a bunch and see if the player gets stuck".
+		</p>
+
+		<div class="callout-grid">
+			<div class="callout-cell">
+				<div class="callout-cell-label">Guaranteed</div>
+				<ul class="callout-list">
+					<li>Integer <code>time.tick</code></li>
+					<li>Insertion-ordered systems</li>
+					<li>Sorted entity iteration</li>
+					<li>Seeded mulberry32 RNG</li>
+					<li>Action streams over events</li>
+				</ul>
+			</div>
+			<div class="callout-cell">
+				<div class="callout-cell-label">Banned outside <code>src/pixi/</code></div>
+				<ul class="callout-list">
+					<li><code>Date.now()</code></li>
+					<li><code>Math.random()</code></li>
+					<li><code>setTimeout</code> / <code>setInterval</code></li>
+					<li><code>pixi.js</code> imports</li>
+					<li>Async game logic (no <code>await</code> in systems)</li>
+				</ul>
+			</div>
+		</div>
+	</div>
+</Section>
+
+<style>
+	.callout {
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg);
+		background: var(--bg-alt);
+		padding: var(--space-lg);
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-md);
+	}
+
+	.callout-header {
+		display: flex;
+		align-items: flex-start;
+		gap: var(--space-md);
+	}
+
+	.callout-icon {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 2rem;
+		height: 2rem;
+		flex-shrink: 0;
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+		background: var(--bg);
+		color: var(--fg);
+	}
+
+	.callout-icon :global(svg) {
+		width: 1.125rem;
+		height: 1.125rem;
+	}
+
+	.callout-title {
+		font-size: var(--text-lg);
+		font-weight: 600;
+		color: var(--fg);
+		margin: 0 0 var(--space-xs) 0;
+	}
+
+	.callout-tagline {
+		font-size: var(--text-sm);
+		color: var(--fg-muted);
+		margin: 0;
+		line-height: 1.5;
+	}
+
+	.callout-body {
+		font-size: var(--text-base);
+		color: var(--fg-muted);
+		margin: 0;
+		line-height: 1.6;
+	}
+
+	.callout-grid {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--space-md);
+	}
+
+	.callout-cell {
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+		background: var(--bg);
+		padding: var(--space-md);
+	}
+
+	.callout-cell-label {
+		font-size: var(--text-xs);
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--fg-faint);
+		margin-bottom: var(--space-sm);
+	}
+
+	.callout-list {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-xs);
+	}
+
+	.callout-list li {
+		font-size: var(--text-sm);
+		color: var(--fg-muted);
+	}
+
+	.callout-list code,
+	.callout-tagline code,
+	.callout-body code {
+		font-family: var(--font-mono);
+		font-size: 0.9em;
+		padding: 1px 6px;
+		background: var(--bg-alt);
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+		color: var(--fg);
+	}
+
+	.callout-cell .callout-list code {
+		background: var(--bg-alt);
+	}
+
+	@media (max-width: 600px) {
+		.callout-grid {
+			grid-template-columns: 1fr;
+		}
+
+		.callout-header {
+			flex-direction: column;
+			align-items: flex-start;
+		}
+	}
+</style>

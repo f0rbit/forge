@@ -1,0 +1,110 @@
+---
+import Section from "./Section.astro";
+import { ArrowRight, Boxes, Gamepad2, BookOpen, Github } from "lucide-astro";
+
+const base = import.meta.env.BASE_URL.endsWith("/")
+	? import.meta.env.BASE_URL
+	: `${import.meta.env.BASE_URL}/`;
+
+const links = [
+	{
+		Icon: Boxes,
+		title: "Core concepts",
+		description: "world, components, queries, schedule, time, RNG, resources.",
+		href: `${base}core/world`,
+	},
+	{
+		Icon: Gamepad2,
+		title: "Input model",
+		description: "Action-first bindings. Keyboard, mouse, gamepad. Replay-portable.",
+		href: `${base}input/action-model`,
+	},
+	{
+		Icon: BookOpen,
+		title: "Cookbook",
+		description: "Movement, collision, scoring, level loading. Copy-pasteable recipes.",
+		href: `${base}cookbook`,
+	},
+	{
+		Icon: Github,
+		title: "Source on GitHub",
+		description: "Engine source, USAGE.md, design docs, change log.",
+		href: "https://github.com/f0rbit/forge",
+	},
+];
+---
+
+<Section title="Next steps" bordered>
+	<div class="links-grid">
+		{links.map((link) => (
+			<a href={link.href} class="card card-flat card-interactive link-card">
+				<div class="link-header">
+					<div class="card-icon">
+						<link.Icon aria-hidden="true" />
+					</div>
+					<h3 class="card-title">{link.title}</h3>
+					<ArrowRight class="link-arrow" aria-hidden="true" />
+				</div>
+				<p class="card-description">{link.description}</p>
+			</a>
+		))}
+	</div>
+</Section>
+
+<style>
+	.links-grid {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: var(--space-md);
+	}
+
+	.link-card {
+		text-decoration: none;
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-xs);
+	}
+
+	.link-header {
+		display: flex;
+		align-items: center;
+		gap: var(--space-sm);
+	}
+
+	.link-header .card-icon {
+		margin: 0;
+		width: 1.25rem;
+		height: 1.25rem;
+		color: var(--fg);
+		display: inline-flex;
+		align-items: center;
+	}
+
+	.link-header .card-icon :global(svg) {
+		width: 1.125rem;
+		height: 1.125rem;
+	}
+
+	.link-header .card-title {
+		margin: 0;
+		flex: 1;
+	}
+
+	.link-arrow {
+		width: 1rem;
+		height: 1rem;
+		color: var(--fg-faint);
+		transition: transform var(--transition), color var(--transition);
+	}
+
+	.link-card:hover .link-arrow {
+		transform: translateX(2px);
+		color: var(--fg);
+	}
+
+	@media (max-width: 600px) {
+		.links-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

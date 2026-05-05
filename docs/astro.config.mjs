@@ -11,7 +11,7 @@ export default defineConfig({
 		starlight({
 			title: "forge",
 			description: "TypeScript game engine on PIXI",
-			customCss: ["./src/styles/custom.css"],
+			customCss: ["./src/styles/custom.css", "./src/styles/landing.css"],
 			components: {
 				ThemeSelect: "./src/components/starlight/ThemeSelect.astro",
 				PageTitle: "./src/components/starlight/PageTitle.astro",
@@ -24,13 +24,11 @@ export default defineConfig({
 					tag: "meta",
 					attrs: {
 						property: "og:image",
-						content: "/forge/og-image.png",
+						content: "/forge/og-image.svg",
 					},
 				},
 			],
-			sidebar: [
-				{ label: "Welcome", slug: "index" },
-			],
+			sidebar: [],
 		}),
 	],
 });

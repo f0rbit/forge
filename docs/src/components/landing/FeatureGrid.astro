@@ -1,0 +1,92 @@
+---
+import Section from "./Section.astro";
+import { Boxes, Hourglass, Crosshair, FlaskConical, Gamepad2, ShieldCheck } from "lucide-astro";
+
+const features = [
+	{
+		Icon: Boxes,
+		title: "Functional ECS",
+		description:
+			"Composition over inheritance. Factory functions return records of methods that close over local state. No this, no classes.",
+	},
+	{
+		Icon: Hourglass,
+		title: "Deterministic",
+		description:
+			"Integer-tick time, seeded mulberry32 RNG, sorted iteration. Same seed plus same actions equals byte-identical replays.",
+	},
+	{
+		Icon: Crosshair,
+		title: "Pixel-perfect",
+		description:
+			"Two-stage rendering on a logical canvas. Five camera modes — letterbox, fit, extend, expand, stretch — and one-pixel scaling.",
+	},
+	{
+		Icon: FlaskConical,
+		title: "Headless-testable",
+		description:
+			"bun test against harness(). No DOM, no canvas, no browser. Replay JSON files double as integration fixtures.",
+	},
+	{
+		Icon: Gamepad2,
+		title: "Action-first input",
+		description:
+			"Keyboard, mouse, gamepad unified through bindings. Replays portable across rebindings — actions are the recording, not keys.",
+	},
+	{
+		Icon: ShieldCheck,
+		title: "Result-typed",
+		description:
+			"@f0rbit/corpus Result<T, E> at every fallible boundary. Zero throws in engine code. The renderer edge wraps PIXI in try_catch.",
+	},
+];
+---
+
+<Section title="Core features" bordered>
+	<div class="feature-grid">
+		{features.map((feature) => (
+			<div class="card card-flat">
+				<div class="row">
+					<div class="card-icon">
+						<feature.Icon aria-hidden="true" />
+					</div>
+					<h3 class="card-title">{feature.title}</h3>
+				</div>
+				<p class="card-description">{feature.description}</p>
+			</div>
+		))}
+	</div>
+</Section>
+
+<style>
+	.feature-grid {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: var(--space-md);
+	}
+
+	.card-icon {
+		margin-bottom: var(--space-sm);
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.5rem;
+		height: 1.5rem;
+		color: var(--fg);
+	}
+
+	.card-icon :global(svg) {
+		width: 1.25rem;
+		height: 1.25rem;
+	}
+
+	.card-title {
+		margin-bottom: var(--space-xs);
+	}
+
+	@media (max-width: 600px) {
+		.feature-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>
