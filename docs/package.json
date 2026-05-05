@@ -1,0 +1,19 @@
+{
+	"name": "@f0rbit/forge-docs",
+	"type": "module",
+	"private": true,
+	"scripts": {
+		"dev": "astro dev",
+		"build": "astro build",
+		"preview": "astro preview",
+		"astro": "astro"
+	},
+	"dependencies": {
+		"@astrojs/starlight": "^0.37.0",
+		"astro": "^5.1.0",
+		"@astrojs/solid-js": "^5.0.0",
+		"solid-js": "^1.9.0",
+		"@f0rbit/ui": "^0.1.9",
+		"lucide-astro": "^0.556.0"
+	}
+}

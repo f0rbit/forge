@@ -1,0 +1,120 @@
+---
+import { Anvil } from "lucide-astro";
+import EditLink from 'virtual:starlight/components/EditLink';
+import LastUpdated from 'virtual:starlight/components/LastUpdated';
+import Pagination from 'virtual:starlight/components/Pagination';
+
+const base = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
+
+const links = [
+  { label: "GitHub", href: "https://github.com/f0rbit/forge" },
+  { label: "npm", href: "https://www.npmjs.com/package/@f0rbit/forge" },
+  { label: "Docs", href: base }
+];
+---
+
+<footer class="sl-flex starlight-footer">
+	<div class="meta sl-flex">
+		<EditLink />
+		<LastUpdated />
+	</div>
+	<Pagination />
+
+	<div class="site-footer">
+		<div class="footer-left row">
+			<Anvil class="footer-logo" aria-hidden="true" />
+			<span class="footer-brand">@f0rbit/forge</span>
+			<span class="footer-divider">·</span>
+			<span class="footer-license">MIT License · {new Date().getFullYear()}</span>
+		</div>
+		<nav class="footer-links">
+			{links.map((link) => (
+				<a href={link.href} class="footer-link">{link.label}</a>
+			))}
+		</nav>
+	</div>
+</footer>
+
+<style>
+	.starlight-footer {
+		flex-direction: column;
+		gap: 1.5rem;
+	}
+
+	.meta {
+		gap: 0.75rem 3rem;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		font-size: var(--sl-text-sm);
+		color: var(--sl-color-gray-3);
+	}
+
+	.meta > :global(p:only-child) {
+		margin-inline-start: auto;
+	}
+
+	.site-footer {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding-top: var(--space-lg);
+		margin-top: var(--space-md);
+		border-top: 1px solid var(--border);
+	}
+
+	.footer-left {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		gap: var(--space-sm);
+	}
+
+	.footer-logo {
+		width: 1.25rem;
+		height: 1.25rem;
+		color: var(--fg-muted);
+	}
+
+	.footer-brand {
+		font-size: var(--text-sm);
+		font-weight: 600;
+		color: var(--fg);
+	}
+
+	.footer-divider {
+		color: var(--fg-faint);
+	}
+
+	.footer-license {
+		font-size: var(--text-sm);
+		color: var(--fg-faint);
+	}
+
+	.footer-links {
+		display: flex;
+		gap: var(--space-md);
+	}
+
+	.footer-link {
+		font-size: var(--text-sm);
+		color: var(--fg-muted);
+		text-decoration: none;
+		transition: color var(--transition);
+	}
+
+	.footer-link:hover {
+		color: var(--fg);
+	}
+
+	@media (max-width: 600px) {
+		.site-footer {
+			flex-direction: column;
+			gap: var(--space-md);
+			align-items: flex-start;
+		}
+
+		.footer-left {
+			flex-wrap: wrap;
+		}
+	}
+</style>

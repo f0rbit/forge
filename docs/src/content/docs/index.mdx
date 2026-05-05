@@ -1,0 +1,41 @@
+---
+title: "Welcome to forge"
+description: "Functional, composition-first TypeScript game engine with PIXI v8 renderer adapter, deterministic ECS, action-stream replays, and corpus-backed persistence."
+---
+
+`@f0rbit/forge` is a functional, ESM-only TypeScript game engine. Five subpath
+exports cover the entire surface: ECS + scheduling + input + replays from `.`,
+the optional PIXI adapter at `./pixi`, debug tooling at `./debug`, snapshot
+persistence at `./storage`, and ergonomic defaults at `./presets`. Every
+fallible boundary returns a `Result<T, E>`, and all browser non-determinism is
+quarantined to `./pixi` so the simulation core stays bit-exact replayable.
+
+This site is the live reference. Full content lands in later phases — for now,
+the [`USAGE.md`](https://github.com/f0rbit/forge/blob/main/USAGE.md) at the
+repo root is the canonical guide and ships in the npm tarball.
+
+## Where to next
+
+- **Quick start** — install, boot, first frame *(coming soon — `/quick-start`)*
+- **Core concepts** — `world`, components, queries, schedule, time, RNG *(coming soon — `/concepts/world`)*
+- **PIXI integration** — `boot()`, camera modes, sprites, anim *(coming soon — `/pixi/boot`)*
+- **Determinism contract** — what's quarantined where, and why *(coming soon — `/determinism`)*
+
+## Hello forge
+
+```ts
+import { world, time, schedule } from "@f0rbit/forge";
+
+const w = world();
+const clock = time();
+
+const tick = schedule().add("update", () => {
+	clock.advance(1 / 60);
+});
+
+tick.run(w);
+```
+
+Five lines and a deterministic, RNG-seeded ECS world is ticking. No `Date.now`,
+no `Math.random`, no `setInterval`. Hand it the same inputs and it produces the
+same outputs — every time.

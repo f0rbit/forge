@@ -50,7 +50,11 @@
     "build:watch": "rolldown -c --watch",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
-    "check:determinism": "bun tools/no-throws.ts"
+    "check:determinism": "bun tools/no-throws.ts",
+    "docs:install": "cd docs && bun install",
+    "docs:dev": "cd docs && bun run dev",
+    "docs:build": "cd docs && bun run build",
+    "docs:preview": "cd docs && bun run preview"
   },
   "dependencies": {
     "@f0rbit/corpus": "^0.3.5",

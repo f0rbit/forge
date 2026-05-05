@@ -1,0 +1,36 @@
+---
+import { Anvil } from "lucide-astro";
+const { siteTitle, siteTitleHref } = Astro.locals.starlightRoute;
+---
+
+<a href={siteTitleHref} class="site-title row sl-flex">
+	<Anvil class="site-logo" aria-hidden="true" />
+	<span translate="no">{siteTitle}</span>
+</a>
+
+<style>
+	.site-title {
+		align-items: center;
+		gap: 0.5rem;
+		font-size: var(--text-sm);
+		font-weight: 600;
+		color: var(--fg);
+		text-decoration: none;
+		white-space: nowrap;
+		min-width: 0;
+	}
+
+	.site-title:hover {
+		color: var(--fg-muted);
+	}
+
+	.site-logo {
+		width: 1.25rem;
+		height: 1.25rem;
+		flex-shrink: 0;
+	}
+
+	.site-title span {
+		overflow: hidden;
+	}
+</style>

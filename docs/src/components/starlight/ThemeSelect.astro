@@ -1,0 +1,204 @@
+---
+const themes = [
+	{ label: "Light", value: "light" },
+	{ label: "Dark", value: "dark" },
+	{ label: "Auto", value: "auto" },
+] as const;
+
+const iconPaths = {
+	light: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+	dark: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+	auto: '<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>',
+} as const;
+---
+
+<starlight-theme-select>
+	<div class="dropdown">
+		<button class="row btn btn-sm theme-trigger" aria-label="Select theme">
+			<svg class="theme-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+				<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+			</svg>
+			<span class="theme-label text-sm">Auto</span>
+			<svg class="theme-chevron" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+				<path d="m6 9 6 6 6-6"/>
+			</svg>
+		</button>
+		<div class="dropdown-menu" hidden>
+			{themes.map((theme) => (
+				<button class="dropdown-item" data-theme-value={theme.value}>
+					<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<Fragment set:html={iconPaths[theme.value]} />
+					</svg>
+					{theme.label}
+				</button>
+			))}
+		</div>
+	</div>
+</starlight-theme-select>
+
+<script is:inline>
+	StarlightThemeProvider.updatePickers();
+</script>
+
+<script>
+	declare const StarlightThemeProvider: {
+		updatePickers: (theme?: string) => void;
+	};
+
+	type Theme = "auto" | "dark" | "light";
+
+	const storageKey = "starlight-theme";
+
+	const parseTheme = (theme: unknown): Theme =>
+		theme === "auto" || theme === "dark" || theme === "light" ? theme : "auto";
+
+	const loadTheme = (): Theme =>
+		parseTheme(typeof localStorage !== "undefined" && localStorage.getItem(storageKey));
+
+	const storeTheme = (theme: Theme): void => {
+		if (typeof localStorage !== "undefined") {
+			localStorage.setItem(storageKey, theme === "light" || theme === "dark" ? theme : "");
+		}
+	};
+
+	const getPreferredColorScheme = (): Theme =>
+		matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+
+	const themeLabels: Record<Theme, string> = {
+		light: "Light",
+		dark: "Dark",
+		auto: "Auto",
+	};
+
+	const onThemeChange = (theme: Theme): void => {
+		StarlightThemeProvider.updatePickers(theme);
+		document.documentElement.dataset.theme = theme === "auto" ? getPreferredColorScheme() : theme;
+		storeTheme(theme);
+	};
+
+	matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => {
+		if (loadTheme() === "auto") onThemeChange("auto");
+	});
+
+	const iconPaths: Record<Theme, string> = {
+		light: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+		dark: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+		auto: '<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>',
+	};
+
+	class StarlightThemeSelect extends HTMLElement {
+		private dropdown: HTMLElement | null = null;
+		private trigger: HTMLElement | null = null;
+		private menu: HTMLElement | null = null;
+		private chevron: HTMLElement | null = null;
+		private label: HTMLElement | null = null;
+		private icon: SVGElement | null = null;
+		private isOpen = false;
+
+		constructor() {
+			super();
+			this.dropdown = this.querySelector(".dropdown");
+			this.trigger = this.querySelector(".theme-trigger");
+			this.menu = this.querySelector(".dropdown-menu");
+			this.chevron = this.querySelector(".theme-chevron");
+			this.label = this.querySelector(".theme-label");
+			this.icon = this.querySelector(".theme-icon");
+
+			this.initTheme();
+			this.bindEvents();
+		}
+
+		private initTheme(): void {
+			const theme = loadTheme();
+			onThemeChange(theme);
+			this.updateLabel(theme);
+			this.updateActiveItem(theme);
+		}
+
+		private bindEvents(): void {
+			this.trigger?.addEventListener("click", (e) => {
+				e.stopPropagation();
+				this.toggle();
+			});
+
+			this.menu?.querySelectorAll(".dropdown-item").forEach((item) => {
+				item.addEventListener("click", () => {
+					const value = (item as HTMLElement).dataset.themeValue as Theme;
+					onThemeChange(value);
+					this.updateLabel(value);
+					this.updateActiveItem(value);
+					this.close();
+				});
+			});
+
+			document.addEventListener("click", (e) => {
+				if (!this.dropdown?.contains(e.target as Node)) {
+					this.close();
+				}
+			});
+
+			document.addEventListener("keydown", (e) => {
+				if (e.key === "Escape" && this.isOpen) {
+					this.close();
+				}
+			});
+		}
+
+		private toggle(): void {
+			this.isOpen ? this.close() : this.open();
+		}
+
+		private open(): void {
+			this.isOpen = true;
+			this.menu?.removeAttribute("hidden");
+			this.chevron?.classList.add("active");
+		}
+
+		private close(): void {
+			this.isOpen = false;
+			this.menu?.setAttribute("hidden", "");
+			this.chevron?.classList.remove("active");
+		}
+
+		private updateLabel(theme: Theme): void {
+			if (this.label) {
+				this.label.textContent = themeLabels[theme];
+			}
+			if (this.icon) {
+				this.icon.innerHTML = iconPaths[theme];
+			}
+		}
+
+		private updateActiveItem(theme: Theme): void {
+			this.menu?.querySelectorAll(".dropdown-item").forEach((item) => {
+				const value = (item as HTMLElement).dataset.themeValue;
+				item.classList.toggle("active", value === theme);
+			});
+		}
+	}
+
+	customElements.define("starlight-theme-select", StarlightThemeSelect);
+</script>
+
+<style>
+	.theme-trigger {
+		gap: var(--space-xs);
+	}
+
+	.theme-icon {
+		flex-shrink: 0;
+	}
+
+	.theme-chevron {
+		transition: transform var(--transition);
+		color: var(--fg-faint);
+	}
+
+	.theme-chevron.active {
+		transform: rotate(180deg);
+	}
+
+	.dropdown-item svg {
+		flex-shrink: 0;
+	}
+</style>
