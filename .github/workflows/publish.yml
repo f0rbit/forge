@@ -27,8 +27,15 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org
 
-      - name: Ensure npm ≥ 11.5.1
-        run: npm install -g npm@latest --force
+      - name: Install npm ≥ 11.5.1 to a clean prefix
+        run: |
+          npm install -g npm@latest --prefix /tmp/npm-prefix
+          echo "/tmp/npm-prefix/bin" >> $GITHUB_PATH
+
+      - name: Verify npm version
+        run: |
+          which npm
+          npm --version
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
