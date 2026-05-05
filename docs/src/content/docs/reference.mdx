@@ -1,99 +1,47 @@
 ---
 title: Reference
-description: Complete exports table for all @f0rbit/forge subpaths
+description: Complete exports table for every @f0rbit/forge subpath, generated from a typed data module.
 ---
 
-## `@f0rbit/forge` (main)
+import { sections, totalExportCount } from "../../data/exports.ts";
 
-| Export | Kind | Signature / shape |
-|---|---|---|
-| `world` | factory | `() => World` |
-| `component` | factory | `<T>(name: string) => Component<T>` |
-| `internal` | symbol | escape hatch — see `World[internal]` |
-| `pos_c` | const | `Component<{ x, y }>` |
-| `World` | type | core ECS |
-| `Component<T>` | type | branded descriptor |
-| `Id` | type | branded number |
-| `Query<C>` | type | iterable + `.each` + `.collect` |
-| `QueryOpts` | type | `{ without?: Component<any>[] }` |
-| `ComponentTuple<C>` | type | helper |
-| `WorldInternal` | type | escape-hatch interface |
-| `schedule` | factory | `() => Schedule` |
-| `Schedule` | type | `{ add, remove, tick, run, stages }` |
-| `Stage` | type | `"startup" \| "pre" \| "update" \| "post" \| "render" \| string` |
-| `System` | type | `(w: World, ctx: Ctx) => void` |
-| `Ctx` | type | `{ time, rng, res, input, debug, palette, store? }` |
-| `time` | factory | `(opts?: { fixed_dt?: number }) => Time` |
-| `Time` | type | `{ tick, fixed_dt, elapsed, alpha, scale, advance, restore }` |
-| `rng` | factory | `(seed: number) => Rng` |
-| `Rng` | type | `{ seed, next, int, pick, fork, state, restore }` |
-| `resources` | factory | `() => Resources` |
-| `resource` | factory | `<T>(name: string) => ResKey<T>` |
-| `Resources`, `ResKey<T>` | type | symbol-keyed registry |
-| `anim`, `anim_c`, `atlas_registry`, `anim_events` | factory + consts | animation system |
-| `Anim`, `AnimData`, `AnimEvent`, `AnimEventBuffer`, `AtlasFrame`, `AtlasRegistry`, `AtlasSequences` | type | — |
-| `input`, `noop_source`, `scripted`, `ticked`, `empty_bindings`, `merge_bindings` | factory + helpers | input layer |
-| `Input`, `ActionState`, `RawInput`, `InputSource`, `PadIndex`, `Bindings`, `Trigger`, `AxisBinding`, `Action` | type | — |
-| `replay` | namespace | `{ record, record_engine, play, save, load, schema }` |
-| `ReplayDoc`, `ActionEvent`, `ReplayError`, `Recorder`, `Player` | type | — |
-| `snapshotter`, `snapshot_schema` | factory + zod schema | persistence kernel |
-| `Snapshot`, `SnapshotMeta`, `EntitySnap`, `Snapshotter`, `TakeOpts`, `RestoreOpts` | type | — |
-| `mem`, `file`, `store`, `save`, `load`, `engine_store`, `bindings_schema`, `prefs_schema`, `default_prefs` | factory + helpers | re-exported from `/storage` for convenience |
-| `Store<T>`, `Slot`, `SaveHandle`, `SaveSlot`, `StoreError`, `MemOpts<T>`, `FileOpts<T>`, `StoreOpts<T>`, `SaveError`, `EngineStore`, `EngineStoreOpts`, `Prefs` | type | — |
-| `debug`, `debug_noop`, `is_dev` | factory + helper | debug subsystem |
-| `Debug`, `DebugOpts`, `DebugCmd`, `DebugStats`, `Pin`, `PinKind`, `Color`, `Inspection`, `ComponentInspection` | type | — |
-| `palette`, `palette_noop`, `builtins`, `tokenise`, `parse_line`, `fuzzy_score`, `fuzzy_rank` | factory + helpers | command palette |
-| `Palette`, `PaletteOpts`, `Command<A>`, `CommandError`, `CommandRunner<A>`, `SearchHit`, `BuiltinDeps`, `ParsedLine` | type | — |
-| `vec2`, `Vec2` | factory + type | `{ x, y }` |
-| `EngineError` | type | union of every kernel error kind |
-| `harness`, `Harness`, `HarnessOpts` | factory + types | test harness |
+The full public surface of `@f0rbit/forge` — every export across the five subpaths, with kind, signature, and a one-line description. Sourced from a typed `data/exports.ts` module that doubles as the data behind [`/llms.txt`](/forge/llms.txt).
 
-## `@f0rbit/forge/pixi`
+For LLM consumption, fetch the plain-text version at `/forge/llms.txt`. For deep-dive prose, follow the per-topic pages in the sidebar.
 
-| Export | Kind | Signature / shape |
-|---|---|---|
-| `boot` | async factory | `(opts: BootOpts) => Promise<Result<App, BootError>>` |
-| `App`, `BootOpts`, `BootError`, `AssetSpec` | type | — |
-| `assets` | factory | `(opts?: AssetsOpts) => Assets` |
-| `Assets`, `AssetsOpts`, `AssetError` | type | — |
-| `browser_source` | factory | `(opts?: BrowserSourceOpts) => BrowserSource` |
-| `BrowserSource`, `BrowserSourceOpts` | type | — |
-| `camera` | factory | `(opts: CameraOpts) => Camera` |
-| `Camera`, `CameraOpts`, `CameraMode`, `Viewport` | type | — |
-| `make_render` | async factory | `(opts: RenderOpts) => Promise<Result<RenderState, RenderError>>` |
-| `RenderState`, `RenderError`, `RenderOpts` | type | — |
-| `sprite_c`, `sprite_sync_system` | const + factory | sprite ECS bridge |
-| `SpriteData`, `SpriteSystemOpts` | type | — |
-| `anim_sync_system` | factory | `(opts: AnimPixiOpts) => System` |
-| `AnimPixiOpts` | type | — |
-| `debug_pixi` | factory | `(opts: DebugPixiOpts) => System` |
-| `DebugPixiOpts` | type | — |
-| `palette_pixi` | factory | `(opts: PalettePixiOpts) => PaletteUI` |
-| `PalettePixiOpts` | type | — |
+**Total exports:** {totalExportCount} across {sections.length} subpaths.
 
-## `@f0rbit/forge/debug`
-
-| Export | Kind |
-|---|---|
-| `debug`, `debug_noop`, `is_dev` | factory + helper |
-| `Debug`, `DebugOpts`, `Color`, `DebugCmd`, `DebugStats`, `Pin`, `PinKind`, `ComponentInspection`, `Inspection` | type |
-
-## `@f0rbit/forge/storage`
-
-| Export | Kind |
-|---|---|
-| `snapshotter`, `snapshot_schema` | factory + zod schema |
-| `mem`, `file`, `store` | factory |
-| `save`, `load` | helpers (compose snapshotter + store) |
-| `engine_store`, `bindings_schema`, `prefs_schema`, `default_prefs` | factory + zod schemas |
-| `Snapshot`, `SnapshotMeta`, `EntitySnap`, `Snapshotter`, `TakeOpts`, `RestoreOpts`, `Store<T>`, `Slot`, `SaveHandle`, `SaveSlot`, `StoreError`, `MemOpts<T>`, `FileOpts<T>`, `StoreOpts<T>`, `SaveError`, `EngineStore`, `EngineStoreOpts`, `Prefs` | type |
-
-## `@f0rbit/forge/presets`
-
-| Export | Kind | Actions |
-|---|---|---|
-| `presets.movement2d` | `Bindings` | `move.x`, `move.y` (axes) |
-| `presets.movement8way` | `Bindings` | `move.{left,right,up,down}` (digital) + `move.x`, `move.y` (axes) |
-| `presets.platformer` | `Bindings` | `jump` (digital), `move.x` (axis) |
-| `presets.twinstick` | `Bindings` | `move.x`, `move.y`, `aim.x`, `aim.y` (axes) |
-| `presets.menu` | `Bindings` | `up`, `down`, `left`, `right`, `confirm`, `cancel` (digital) |
+{sections.map((section) => (
+  <section>
+    <h2 id={section.subpath.replace(/[^a-z0-9]/gi, "-").toLowerCase()}>
+      <code>{section.subpath}</code>
+    </h2>
+    <p>{section.description}</p>
+    {section.categories.map((category) => (
+      <div>
+        <h3>{category.name}</h3>
+        {category.description && <p>{category.description}</p>}
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Kind</th>
+              <th>Signature</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {category.exports.map((entry) => (
+              <tr>
+                <td><code>{entry.name}</code></td>
+                <td>{entry.kind}</td>
+                <td>{entry.signature ? <code>{entry.signature}</code> : "—"}</td>
+                <td>{entry.description}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    ))}
+  </section>
+))}
