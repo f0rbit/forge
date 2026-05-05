@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { input, replay, type ReplayDoc } from "../src/index.ts";
+import { harness, input, replay, type ReplayDoc } from "../src/index.ts";
 import { presets } from "../src/presets/index.ts";
 
 describe("replay schema", () => {
@@ -78,6 +78,52 @@ describe("replay record/save/load round-trip", () => {
 		expect(doc.frames.length).toBe(2);
 		expect(doc.frames[0]?.tick).toBe(0);
 		expect(doc.frames[1]?.tick).toBe(3);
+	});
+});
+
+describe("replay.record_engine", () => {
+	test("pulls seed/fixed_dt/get_tick from ctx", () => {
+		const h = harness({ seed: 99, fixed_dt: 1 / 30, bindings: presets.platformer });
+		const rec = replay.record_engine(h.input, h.ctx);
+
+		h.input.pump([{ kind: "key.down", code: "Space", pad: null, t: 0 }]);
+		h.time.advance(1 / 30);
+		h.input.pump([{ kind: "key.up", code: "Space", pad: null, t: 0 }]);
+
+		const doc = rec.stop();
+		expect(doc.seed).toBe(99);
+		expect(doc.fixed_dt).toBeCloseTo(1 / 30);
+	});
+
+	test("opts.seed override wins over ctx.rng.seed", () => {
+		const h = harness({ seed: 1, bindings: presets.platformer });
+		const rec = replay.record_engine(h.input, h.ctx, { seed: 123 });
+		const doc = rec.stop();
+		expect(doc.seed).toBe(123);
+	});
+
+	test("output is identical to manual replay.record(input, opts)", () => {
+		const h_manual = harness({ seed: 5, bindings: presets.platformer });
+		const h_engine = harness({ seed: 5, bindings: presets.platformer });
+
+		const manual = replay.record(h_manual.input, {
+			seed: 5,
+			fixed_dt: 1 / 60,
+			get_tick: () => h_manual.time.tick,
+		});
+		const engine = replay.record_engine(h_engine.input, h_engine.ctx);
+
+		const drive = (h: typeof h_manual): void => {
+			h.input.pump([{ kind: "key.down", code: "Space", pad: null, t: 0 }]);
+			h.time.advance(1 / 60);
+			h.input.pump([]);
+			h.time.advance(1 / 60);
+			h.input.pump([{ kind: "key.up", code: "Space", pad: null, t: 0 }]);
+		};
+		drive(h_manual);
+		drive(h_engine);
+
+		expect(engine.stop()).toEqual(manual.stop());
 	});
 });
 

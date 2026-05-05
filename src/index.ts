@@ -68,3 +68,6 @@ export type { Vec2 } from "./math.ts";
 export { vec2 } from "./math.ts";
 
 export type { EngineError } from "./errors.ts";
+
+export { harness } from "./harness.ts";
+export type { Harness, HarnessOpts } from "./harness.ts";

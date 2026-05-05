@@ -71,4 +71,53 @@ describe("query", () => {
 		expect(all).toHaveLength(1);
 		expect(all[0]![0]).toBe(target);
 	});
+
+	test("collect returns a snapshot independent of subsequent mutation", () => {
+		const w = world();
+		for (let i = 0; i < 5; i++) w.spawn([pos, { x: i, y: 0 }]);
+		const snap = w.query([pos] as const).collect();
+		expect(snap).toHaveLength(5);
+		for (const [id] of snap) w.despawn(id);
+		expect(w.count()).toBe(0);
+		expect(snap).toHaveLength(5);
+	});
+
+	test("__DEV__ warns when world is mutated mid-iteration", () => {
+		const w = world();
+		for (let i = 0; i < 3; i++) w.spawn([pos, { x: i, y: 0 }]);
+		const original = console.warn;
+		const calls: string[] = [];
+		console.warn = (...args: unknown[]) => {
+			calls.push(args.map(String).join(" "));
+		};
+		try {
+			let n = 0;
+			for (const [id] of w.query([pos] as const)) {
+				w.despawn(id);
+				if (++n >= 2) break;
+			}
+		} finally {
+			console.warn = original;
+		}
+		expect(calls.length).toBeGreaterThan(0);
+		expect(calls[0]).toContain("collect()");
+	});
+
+	test("collect() does not trigger the mutation warning even when followed by mutation", () => {
+		const w = world();
+		for (let i = 0; i < 3; i++) w.spawn([pos, { x: i, y: 0 }]);
+		const original = console.warn;
+		const calls: string[] = [];
+		console.warn = (...args: unknown[]) => {
+			calls.push(args.map(String).join(" "));
+		};
+		try {
+			for (const [id] of w.query([pos] as const).collect()) {
+				w.despawn(id);
+			}
+		} finally {
+			console.warn = original;
+		}
+		expect(calls.length).toBe(0);
+	});
 });

@@ -18,6 +18,22 @@ export type QueryOpts = {
 	without?: readonly Component<any>[];
 };
 
+/**
+ * Returns a live view over component stores. The view is current
+ * as of iteration time — mutating the keyset (despawn / remove / spawn /
+ * set on a new entity) during iteration may invalidate the iterator.
+ * In-place updates via `set()` on an entity already in the store are safe.
+ * Snapshot via `.collect()` before structural mutation.
+ *
+ * Example:
+ *   for (const [e, p, v] of world.query([pos_c, vel_c]).collect()) {
+ *     world.despawn(e);  // safe: collect() captured the snapshot
+ *   }
+ *
+ * In `__DEV__` builds, mid-iteration keyset mutation triggers a
+ * `console.warn` pointing back to `.collect()`. Production builds
+ * (NODE_ENV=production or globalThis.__DEV__ = false) skip the check.
+ */
 export type Query<C extends readonly Component<any>[]> = {
 	each: (fn: (id: Id, ...data: ComponentTuple<C>) => void) => void;
 	collect: () => Array<readonly [Id, ...ComponentTuple<C>]>;
@@ -45,11 +61,25 @@ export type World = {
 	[internal]: WorldInternal;
 };
 
+const DEV = (() => {
+	const g = globalThis as { __DEV__?: boolean };
+	if (typeof g.__DEV__ === "boolean") return g.__DEV__;
+	const proc = (globalThis as { process?: { env?: { NODE_ENV?: string } } }).process;
+	return proc?.env?.NODE_ENV !== "production";
+})();
+
 export const world = (): World => {
 	const stores = new Map<symbol, Map<Id, unknown>>();
 	const components_by_key = new Map<symbol, Component<any>>();
+	const versions = new Map<symbol, number>();
 	const entities = new Set<Id>();
 	let next_id = 1;
+
+	const bump = (key: symbol): void => {
+		versions.set(key, (versions.get(key) ?? 0) + 1);
+	};
+
+	const version_of = (key: symbol): number => versions.get(key) ?? 0;
 
 	const get_store = (c: Component<any>): Map<Id, unknown> => {
 		const existing = stores.get(c.key);
@@ -57,6 +87,7 @@ export const world = (): World => {
 		const fresh = new Map<Id, unknown>();
 		stores.set(c.key, fresh);
 		components_by_key.set(c.key, c);
+		versions.set(c.key, 0);
 		return fresh;
 	};
 
@@ -70,6 +101,7 @@ export const world = (): World => {
 		entities.add(id);
 		for (const [c, data] of components) {
 			get_store(c).set(id, data);
+			bump(c.key);
 		}
 		return id;
 	};
@@ -78,6 +110,7 @@ export const world = (): World => {
 		entities.add(id);
 		for (const [c, data] of components) {
 			get_store(c).set(id, data);
+			bump(c.key);
 		}
 		if ((id as unknown as number) >= next_id) next_id = (id as unknown as number) + 1;
 	};
@@ -85,7 +118,9 @@ export const world = (): World => {
 	const despawn = (id: Id): Result<void, EngineError> => {
 		if (!entities.has(id)) return err({ kind: "entity_not_found", id });
 		entities.delete(id);
-		for (const store of stores.values()) store.delete(id);
+		for (const [key, store] of stores) {
+			if (store.delete(id)) bump(key);
+		}
 		return ok(undefined);
 	};
 
@@ -97,7 +132,10 @@ export const world = (): World => {
 
 	const set_data = <T>(id: Id, c: Component<T>, data: T): Result<void, EngineError> => {
 		if (!entities.has(id)) return err({ kind: "entity_not_found", id });
-		get_store(c).set(id, data);
+		const store = get_store(c);
+		const had = store.has(id);
+		store.set(id, data);
+		if (!had) bump(c.key);
 		return ok(undefined);
 	};
 
@@ -105,13 +143,20 @@ export const world = (): World => {
 		const store = stores.get(c.key);
 		if (!store || !store.has(id)) return err({ kind: "component_missing", id, component: c.name });
 		store.delete(id);
+		bump(c.key);
 		return ok(undefined);
 	};
 
 	const query = <C extends readonly Component<any>[]>(cs: C, opts?: QueryOpts): Query<C> => {
 		const without = opts?.without ?? [];
 
-		const iterate = function* (): Generator<readonly [Id, ...ComponentTuple<C>]> {
+		const tracked_keys = (): symbol[] => {
+			const keys: symbol[] = cs.map(c => c.key);
+			for (const w of without) keys.push(w.key);
+			return keys;
+		};
+
+		const iterate = function* (check_mutation: boolean): Generator<readonly [Id, ...ComponentTuple<C>]> {
 			if (cs.length === 0) return;
 			const required_stores = cs.map(c => stores.get(c.key));
 			if (required_stores.some(s => !s)) return;
@@ -126,7 +171,23 @@ export const world = (): World => {
 				}
 			}
 
+			const keys = check_mutation ? tracked_keys() : [];
+			const captured = check_mutation ? keys.map(k => version_of(k)) : [];
+			let warned = false;
+			const check = (): void => {
+				if (warned) return;
+				for (let i = 0; i < keys.length; i++) {
+					if (version_of(keys[i] as symbol) !== captured[i]) {
+						warned = true;
+						const names = cs.map(c => c.name).join(", ");
+						console.warn(`[forge] world.query([${names}]) iterator detected mid-iteration mutation. Snapshot via .collect() before mutating to avoid undefined behaviour.`);
+						return;
+					}
+				}
+			};
+
 			outer: for (const id of primary.keys()) {
+				if (check_mutation) check();
 				const data: unknown[] = new Array(cs.length);
 				data[primary_idx] = primary.get(id);
 				for (let i = 0; i < cs.length; i++) {
@@ -145,13 +206,13 @@ export const world = (): World => {
 
 		return {
 			each: fn => {
-				for (const tuple of iterate()) {
+				for (const tuple of iterate(DEV)) {
 					const [id, ...data] = tuple;
 					fn(id, ...(data as ComponentTuple<C>));
 				}
 			},
-			collect: () => Array.from(iterate()),
-			[Symbol.iterator]: () => iterate(),
+			collect: () => Array.from(iterate(false)),
+			[Symbol.iterator]: () => iterate(DEV),
 		};
 	};
 
@@ -181,7 +242,12 @@ export const world = (): World => {
 			stores: () => stores as unknown as ReadonlyMap<symbol, ReadonlyMap<Id, unknown>>,
 			clear: () => {
 				entities.clear();
-				for (const store of stores.values()) store.clear();
+				for (const [key, store] of stores) {
+					if (store.size > 0) {
+						store.clear();
+						versions.set(key, (versions.get(key) ?? 0) + 1);
+					}
+				}
 				next_id = 1;
 			},
 		},

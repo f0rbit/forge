@@ -1,6 +1,7 @@
 import { ok, err, try_catch, type Result } from "@f0rbit/corpus";
 import { z } from "zod";
 import type { Input } from "./input/input.ts";
+import type { Ctx } from "./schedule.ts";
 
 export type ActionEvent =
 	| { kind: "press"; action: string; tick: number }
@@ -146,8 +147,16 @@ const load = (json: string): Result<ReplayDoc, ReplayError> => {
 	return ok(r.data as ReplayDoc);
 };
 
+const record_engine = (i: Input, ctx: Ctx, opts?: { seed?: number }): Recorder =>
+	record(i, {
+		seed: opts?.seed ?? ctx.rng.seed,
+		fixed_dt: ctx.time.fixed_dt,
+		get_tick: () => ctx.time.tick,
+	});
+
 export const replay = {
 	record,
+	record_engine,
 	play,
 	save,
 	load,
