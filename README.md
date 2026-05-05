@@ -2,7 +2,9 @@
 
 A small, functional, composition-first TypeScript game engine published as a single npm package with subpath exports. PIXI v8 is consumed strictly as a renderer + asset loader at the edge (`@f0rbit/forge/pixi`, peer-dep on `pixi.js`); everything else (ECS, scheduling, input, time, RNG, replay, persistence, debug, palette) is renderer-agnostic and runs headless under `bun test`. Determinism is a hard guarantee, not an aspiration.
 
-See [`PLAN.md`](./PLAN.md) for the full design doc and [`CHANGELOG.md`](./CHANGELOG.md) for release notes.
+> **Full API documentation lives in [`USAGE.md`](./USAGE.md)** — a comprehensive reference covering every subsystem, every export, the determinism contract, the camera math, a cookbook of common patterns, and worked examples lifted from the canonical consumer (`coin-collector`).
+
+For the design doc see [`PLAN.md`](./PLAN.md); for release notes see [`CHANGELOG.md`](./CHANGELOG.md).
 
 ## Install
 
@@ -14,57 +16,51 @@ bun add pixi.js   # only if you use the @f0rbit/forge/pixi subpath
 ## Subpaths
 
 ```ts
-import { /* engine core */ } from "@f0rbit/forge"
-import { presets }          from "@f0rbit/forge/presets"
-import { debug }            from "@f0rbit/forge/debug"
-import { engine_store }     from "@f0rbit/forge/storage"
-import { boot }             from "@f0rbit/forge/pixi"
+import { /* engine core */ } from "@f0rbit/forge";
+import { presets }          from "@f0rbit/forge/presets";
+import { /* debug types */ } from "@f0rbit/forge/debug";
+import { engine_store }     from "@f0rbit/forge/storage";
+import { boot, sprite_c }   from "@f0rbit/forge/pixi";
 ```
 
-## Getting started
+## Quick start
 
 ```ts
-import { component } from "@f0rbit/forge";
-import { boot } from "@f0rbit/forge/pixi";
-import { presets } from "@f0rbit/forge/presets";
+import { component, pos_c } from "@f0rbit/forge";
+import { boot, sprite_c }   from "@f0rbit/forge/pixi";
+import { presets }          from "@f0rbit/forge/presets";
 
-const pos = component<{ x: number; y: number }>("pos");
-const vel = component<{ dx: number; dy: number }>("dx");
+const player_c = component<true>("player");
 
 const r = await boot({
-  mount: "#game",
-  width: 640,
-  height: 360,
+  mount: "#root",
+  window: { width: globalThis.innerWidth, height: globalThis.innerHeight },
+  camera: { design: { width: 320, height: 180 }, mode: "letterbox" },
   bindings: presets.movement2d,
-  assets: [
-    { kind: "atlas", alias: "hero", url: "/sprites/hero.json" },
-  ],
 });
 if (!r.ok) throw new Error(`boot failed: ${r.error.kind}`);
-const { world, schedule, input, ctx, start } = r.value;
+const app = r.value;
 
-const player = world.spawn(
-  [pos, { x: 100, y: 100 }],
-  [vel, { dx: 0, dy: 0 }],
+app.world.spawn(
+  [pos_c, { x: 160, y: 90 }],
+  [player_c, true],
+  [sprite_c, { texture: "__default__", frame: "__default_0__", anchor: { x: 0.5, y: 0.5 } }],
 );
 
-schedule.add("update", (w, c) => {
-  const [dx, dy] = c.input.vector("move.x", "move.y");
-  const v = w.get(player, vel);
-  if (v.ok) w.set(player, vel, { dx: dx * 60, dy: dy * 60 });
-}, "input.move");
-
-schedule.add("update", (w, c) => {
-  for (const [, p, v] of w.query([pos, vel] as const)) {
-    p.x += v.dx * c.time.fixed_dt;
-    p.y += v.dy * c.time.fixed_dt;
+app.schedule.add("update", (w, ctx) => {
+  const [dx, dy] = ctx.input.vector("move.x", "move.y");
+  for (const [, p] of w.query([pos_c, player_c] as const)) {
+    p.x += dx * 60 * ctx.time.fixed_dt;
+    p.y += dy * 60 * ctx.time.fixed_dt;
   }
-}, "movement");
+}, "player.move");
 
-start();
+app.start();
 ```
 
-WASD/arrow keys move the player; F1 toggles the debug overlay; backtick opens the command palette.
+WASD/arrows/left stick move the player; F1 toggles debug; backtick (`` ` ``) opens the command palette.
+
+For a full end-to-end consumer (replay tests, level setup, persistence), see the `coin-collector` repo.
 
 ## Build & test
 
