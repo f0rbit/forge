@@ -1,6 +1,6 @@
 {
   "name": "@f0rbit/forge",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Functional, composition-first TypeScript game engine with PIXI v8 renderer adapter, deterministic ECS, action-stream replays, and corpus-backed persistence.",
   "license": "MIT",
   "author": "Tom",
@@ -17,7 +17,6 @@
   "files": [
     "dist",
     "README.md",
-    "USAGE.md",
     "CHANGELOG.md",
     "LICENSE",
     "PLAN.md"

@@ -1,5 +1,13 @@
 # @f0rbit/forge
 
+## 0.1.5
+
+### Patch Changes
+
+- Drop `USAGE.md` from the repo and the published tarball. The docs site at https://f0rbit.github.io/forge/ is now the canonical reference; no need to maintain a separate single-file copy that would drift.
+
+  `package.json` `files` no longer lists `USAGE.md`.
+
 ## 0.1.4
 
 ### Patch Changes
