@@ -1,5 +1,51 @@
 # @f0rbit/forge
 
+## 0.3.0
+
+### Minor Changes
+
+- v0.3.0 — interface cleanup. Breaking changes are intentional pre-1.0; this pass simplifies the public API by removing redundant surface that v0.2.0's "no breaking" rule baked in.
+
+  ## Breaking changes
+
+  ### Core (`@f0rbit/forge`)
+
+  - **`world.query` auto-elides marker components.** `query([pos_c, player_c, dir_c])` yields `[Id, Pos, Dir]` (no `true` slot). `world.query_data` removed — use `query` directly.
+  - **`schedule.add(stage, sys, opts?)` unified.** `opts.every` and `opts.phase` gate periodic execution; `opts.name` labels. Bare-string `name` positional kept as sugar. `schedule.add_periodic` removed.
+  - **`replay.record(input, ctx, opts?)` unified.** Pulls `fixed_dt`, `get_tick`, `seed` from `ctx`. `replay.record_engine` removed.
+  - **`replay_schema` top-level export** replaces `replay.schema`.
+  - **Resource keys carry `_r` suffix** (forge-exported): `atlas_registry_r`, `anim_events_r`.
+  - **`world.spawn_at` moved to `world[internal]`** — implementation-detail-only for snapshot restore.
+
+  ### `@f0rbit/forge/grid`
+
+  - **`line`, `line_of_sight`, `move_tile` are now methods on the `Grid` record** returned by `grid({...})`. Standalone exports removed. `FovOpts.grid` and `TileMoveOpts.grid` slots removed (grid is now `this`). `TileMoveOpts.pos` defaults to canonical `pos_c`.
+
+  ### `@f0rbit/forge/pixi`
+
+  - **`assets.load<K>(kind, alias, url)` unified loader** replaces `assets.image` / async `assets.atlas`. Synchronous getters `assets.texture(alias)` and `assets.atlas(alias)` retained. `AssetKind`, `LoadValue<K>` exported.
+  - **`SpriteData` is config-only**. Runtime PIXI Sprite refs live in a private `WeakMap<World, Map<Id, Sprite>>`. New `sprite.set(w, id, partial)`, `sprite.show(w, id)`, `sprite.hide(w, id)` helpers. `sprite_internal` named export deleted.
+  - **`anim_c.t` marked `@internal`** in JSDoc — replay determinism requires the field; consumers shouldn't read/write directly.
+
+  ### `@f0rbit/forge/presets`
+
+  - Renamed for snake_case consistency: `movement2d → movement_2d`, `movement8way → movement_8way`, `movement_4way_digital → movement_4way` (drop `_digital` since it's the default for 4-way).
+
+  ## Additive
+
+  - `world.spawn_many([...specs])` array overload alongside the existing `(count, factory)` form.
+
+  ## Tests
+
+  340 → 354 (+14 net across the cleanup). Replay determinism preserved.
+
+  ## Migration
+
+  Consumers should expect ~30-40 LOC saved on top of v0.2.0's reductions:
+
+  - `dungeon-walk` (echo): another ~37 LOC saved (cumulative ~145 from v0.1.x).
+  - `coin-collector`: ~10 LOC saved (preset name update + minor signature touchups).
+
 ## 0.2.0
 
 ### Minor Changes
