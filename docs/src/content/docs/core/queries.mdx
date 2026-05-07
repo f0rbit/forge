@@ -64,3 +64,37 @@ The `without` option excludes entities that have any of the listed components:
 ```ts
 const dead = w.query([pos_c] as const, { without: [alive_c] }).collect();
 ```
+
+## Marker filters — `query_data`
+
+`query()` returns the full data tuple including marker stores, which means a marker like `player_c: Component<true>` shows up as a `true` slot you have to skip:
+
+```ts
+for (const [id, p, , d] of w.query([pos_c, player_c, dir_c]).collect()) {
+  //                ↑ awkward "true" slot
+  p.x += d.dx;
+}
+```
+
+`query_data(data, markers, opts?)` separates the two: `data` components return their values, `markers` filter without contributing to the tuple shape.
+
+```ts
+for (const [id, p, d] of w.query_data([pos_c, dir_c], [player_c]).collect()) {
+  // id: Id, p: Pos, d: Dir   — no `true` slot
+  p.x += d.dx;
+}
+```
+
+Signature:
+
+```ts
+world.query_data<D extends readonly Component<any>[], M extends readonly Component<any>[]>(
+  data: D,
+  markers: M,
+  opts?: QueryOpts,
+): Query<D>;
+```
+
+The `data` array can be empty if you only want to filter by markers. The `markers` array can be empty if you only want data (effectively a `query()`). The `without` option still applies to the resulting iteration.
+
+`query_data` shares the same iterator semantics as `query`: in-place updates are safe, structural mutation requires `.collect()` first, `__DEV__` builds detect mid-iteration mutation.

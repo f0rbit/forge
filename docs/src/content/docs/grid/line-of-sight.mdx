@@ -1,0 +1,71 @@
+---
+title: Line of Sight
+description: Symmetric FOV — set of visible cell-keys from an origin within Chebyshev radius.
+---
+
+`line_of_sight()` is a Bresenham-based field of view. For every cell within Chebyshev radius, it walks a line from `from` to that cell and includes it iff every intermediate step is non-blocking. **Symmetric** by construction: A sees B iff B sees A.
+
+```ts
+import { line_of_sight, grid } from "@f0rbit/forge/grid";
+
+const g = grid({ cols: 20, rows: 11, tile: 16 });
+const blocked = new Set<number>(/* keys of opaque walls */);
+
+const visible = line_of_sight({
+  from: { x: 5, y: 4 },
+  radius: 6,
+  grid: g,
+  is_blocking: (cell) => blocked.has(g.key(cell.x, cell.y)),
+});
+
+if (visible.has(g.key(8, 6))) { /* (8,6) is visible */ }
+```
+
+## Shape
+
+```ts
+type FovOpts = {
+  from: Cell;
+  radius: number;                                // Chebyshev radius
+  grid: Grid;
+  is_blocking: (cell: Cell) => boolean;          // true = sight cannot pass
+  include_origin?: boolean;                      // default true
+};
+
+const line_of_sight: (opts: FovOpts) => ReadonlySet<number>;
+```
+
+The returned `Set<number>` keys are produced by `grid.key(x, y)`. Use `grid.unkey(k)` to recover the cell.
+
+## Properties
+
+- **Symmetric** — opaque blockers stop the line on entry, so visibility is a strict relation rather than a half-open one.
+- **Cheap** — `O(radius² · radius)` cell visits. For radius 8 on a 20×11 board that's well under a millisecond.
+- **Deterministic** — pure function of the inputs; no `Math.random`, no time, no allocations beyond the result set.
+- **Origin handling** — `include_origin: true` (default) always adds `from`. The blocker test is **not** applied to `from` or to the target cell itself; only to intermediate steps.
+
+## Pairing with `grid_index`
+
+When opaque entities live as ECS components, derive `is_blocking` from a [`grid_index`](/forge/grid/grid-index/):
+
+```ts
+import { grid_index, grid_index_sync_system, line_of_sight } from "@f0rbit/forge/grid";
+
+const wall_idx = grid_index(world, pos_c, g, wall_c);
+schedule.add("pre", grid_index_sync_system(wall_idx), "wall.idx");
+
+const fov_system: System = (w) => {
+  const player = /* query for player position */;
+  const visible = line_of_sight({
+    from: g.world_to_cell(player.x, player.y),
+    radius: 6,
+    grid: g,
+    is_blocking: (c) => wall_idx.at(c) !== null,
+  });
+  // toggle visibility on tiles…
+};
+```
+
+## Sprite-toggle gotcha
+
+If you're flipping `sprite_c.visible` on hundreds of tiles per FOV update, do a **delta** against the previous visible set — only set sprites whose visibility actually changed this tick. The full sweep allocates per-cell. See the [Cookbook](/forge/cookbook/) for the pattern.

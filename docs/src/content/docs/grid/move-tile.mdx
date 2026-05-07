@@ -1,0 +1,85 @@
+---
+title: Move Tile
+description: Step one cell with axis-sliding collision predicate.
+---
+
+`move_tile()` steps an entity one cell in a direction with **axis-sliding** collision: it tries `dx` first, then `dy` from the resulting cell. This prevents corner-cutting through diagonal walls — the canonical correctness detail every reimplementation has to rediscover.
+
+```ts
+import { move_tile } from "@f0rbit/forge/grid";
+
+const r = move_tile(world, player, pos_c, g, { dx: 1, dy: 0 }, {
+  blocked_by: (c) => walls.has(g.key(c.x, c.y)),
+});
+if (r.ok && r.value.moved) {
+  if (r.value.to.x === exit.x && r.value.to.y === exit.y) {
+    // reached the exit
+  }
+}
+```
+
+## Shape
+
+```ts
+type TileMoveOpts = {
+  blocked_by: (cell: Cell) => boolean;
+  slide?: boolean;                  // default true
+};
+
+type TileMoveResult = {
+  from: Cell;
+  to: Cell;
+  moved: boolean;
+};
+
+const move_tile: <P extends { x: number; y: number }>(
+  w: World,
+  id: Id,
+  pos_c: Component<P>,
+  grid: Grid,
+  dir: { dx: -1 | 0 | 1; dy: -1 | 0 | 1 },
+  opts: TileMoveOpts,
+) => Result<TileMoveResult, EngineError>;
+```
+
+## Slide semantics
+
+With `slide: true` (the default), the move is decomposed:
+
+1. Try cell `(cur.x + dx, cur.y)`. If `blocked_by` returns false and it's in bounds, move X.
+2. From the (possibly updated) cell, try `(nx, cur.y + dy)`. If non-blocked, move Y.
+
+This means a diagonal `{ dx: 1, dy: 1 }` move can "slide" along a wall — push into a corner and you'll still move along the open axis. A pure 4-way game using `{ dx: ±1, dy: 0 }` or `{ dx: 0, dy: ±1 }` gets the obvious behaviour.
+
+With `slide: false`, the diagonal cell is checked atomically — a single blocker cancels the move.
+
+## Result interpretation
+
+| `moved` | Meaning |
+|---|---|
+| `true` | Position was updated; `to` is the new cell. |
+| `false`, `from === to` | Fully blocked, OR direction was `(0, 0)`. |
+| `false`, `from !== to` | Currently impossible (slide always commits if any axis moved). |
+
+The `to` cell is the **resolved** cell — read it to react ("did I just step onto the exit / pickup / damaging tile?"):
+
+```ts
+if (r.ok && r.value.moved) {
+  on_step(r.value.to);
+}
+```
+
+## Errors
+
+`move_tile` propagates the kernel's error union — `entity_not_found` or `component_missing` if `id` doesn't have `pos_c`. Otherwise it's `ok({ from, to, moved })`.
+
+## Cadence
+
+Tile movement usually wants a periodic gate so taps register as discrete steps. Combine with [`schedule.add_periodic`](/forge/core/schedule/) and [`ticks_per_step`](/forge/grid/ticks-per-step/):
+
+```ts
+import { ticks_per_step } from "@f0rbit/forge/grid";
+
+const every = ticks_per_step(8, ctx.time.fixed_dt);  // 8 cells/sec
+schedule.add_periodic("update", movement_system, { every }, "movement");
+```

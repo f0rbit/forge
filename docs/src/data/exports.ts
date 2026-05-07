@@ -32,6 +32,9 @@ export const sections: SubpathSection[] = [
 					{ name: "component", kind: "factory", signature: "<T>(name: string) => Component<T>", description: "Create a typed component descriptor backed by a global symbol (Symbol.for)." },
 					{ name: "internal", kind: "constant", signature: "unique symbol", description: "Escape-hatch key for World[internal]. Used by snapshot/restore and tests." },
 					{ name: "pos_c", kind: "constant", signature: "Component<{ x: number; y: number }>", description: "Canonical position component used by PIXI sprite + anim sync systems." },
+					{ name: "world.spawn_many", kind: "function", signature: "(count: number, factory: (i: number) => readonly [Component<any>, any][]) => readonly Id[]", description: "Bulk-spawn `count` entities. Returns ids in input order. Common for level setup, restart, wave spawns." },
+					{ name: "world.despawn_marked", kind: "function", signature: "(...markers: readonly Component<any>[]) => number", description: "Bulk-despawn every entity that has ALL of the given marker components. Snapshots before mutating; safe to call mid-iteration of unrelated queries. Returns count despawned." },
+					{ name: "world.query_data", kind: "function", signature: "<D, M>(data: D, markers: M, opts?: QueryOpts) => Query<D>", description: "Query that splits data components from marker filters. Marker stores aren't returned in the tuple, so you skip the awkward `true` slot." },
 					{ name: "World", kind: "type", description: "Core ECS interface returned by world()." },
 					{ name: "Component", kind: "type", signature: "Component<T>", description: "Branded descriptor pairing a name, key, and data type." },
 					{ name: "Id", kind: "type", description: "Branded number identifying an entity." },
@@ -46,9 +49,11 @@ export const sections: SubpathSection[] = [
 				description: "Insertion-ordered system runner with named stages.",
 				exports: [
 					{ name: "schedule", kind: "factory", signature: "() => Schedule", description: "Create a schedule. Default stages: startup, pre, update, post, render." },
-					{ name: "Schedule", kind: "type", description: "{ add, remove, tick, run, stages }." },
+					{ name: "schedule.add_periodic", kind: "function", signature: "(stage: Stage, sys: System, opts: { every: number; phase?: number }, name?: string) => Schedule", description: "Register a system that only runs on every Nth tick. `phase` offsets the gate so two periodic systems can interleave instead of bunching on tick 0." },
+					{ name: "Schedule", kind: "type", description: "{ add, add_periodic, remove, tick, run, stages }." },
 					{ name: "Stage", kind: "type", signature: '"startup" | "pre" | "update" | "post" | "render" | string', description: "Built-in or custom stage name." },
 					{ name: "System", kind: "type", signature: "(w: World, ctx: Ctx) => void", description: "A system function — receives the world and the per-tick context." },
+					{ name: "PeriodicOpts", kind: "type", signature: "{ every: number; phase?: number }", description: "Options for schedule.add_periodic — `every` is positive integer; `phase` defaults to 0." },
 					{ name: "Ctx", kind: "type", signature: "{ time, rng, res, input, debug, palette, store? }", description: "Per-tick context handed to every system." },
 				],
 			},
@@ -299,9 +304,10 @@ export const sections: SubpathSection[] = [
 				name: "Sprite",
 				description: "ECS↔PIXI sprite bridge.",
 				exports: [
-					{ name: "sprite_c", kind: "constant", signature: "Component<SpriteData>", description: "Per-entity sprite component (texture, frame, anchor, tint, alpha)." },
-					{ name: "sprite_sync_system", kind: "factory", signature: "(opts: SpriteSystemOpts) => System", description: "System that syncs sprite_c to PIXI display objects each post-tick." },
-					{ name: "SpriteData", kind: "type", description: "{ texture, frame, anchor, tint?, alpha?, scale? }." },
+					{ name: "sprite_c", kind: "constant", signature: "Component<SpriteData>", description: "Per-entity sprite component (texture, frame, anchor, tint, scale, visibility)." },
+					{ name: "sprite_sync_system", kind: "factory", signature: "(opts: SpriteSystemOpts) => System", description: "System that syncs sprite_c to PIXI display objects each post-tick. Applies texture/frame, anchor, tint, scale, position, zIndex." },
+					{ name: "SpriteData", kind: "type", description: "{ texture, frame?, anchor?, tint?, visible?, z?, scale?, node? }." },
+					{ name: "SpriteData.scale", kind: "type", signature: "{ x: number; y: number }", description: "Optional non-uniform scale applied to the underlying PIXI Sprite each frame. Defaults to (1,1). Use for HUD vs world sprite ratios, pixel-perfect upscale, mirroring (`{ x: -1, y: 1 }`)." },
 					{ name: "SpriteSystemOpts", kind: "type", description: "{ assets, world_container, pos_component } options." },
 				],
 			},
@@ -417,6 +423,56 @@ export const sections: SubpathSection[] = [
 		],
 	},
 	{
+		subpath: "@f0rbit/forge/grid",
+		description: "Grid-game primitives — pure cell math, Bresenham line, line-of-sight FOV, cell-keyed spatial index, axis-sliding tile movement, and tick/cell-rate calibration. Tree-shakeable; non-grid consumers pay nothing.",
+		categories: [
+			{
+				name: "Grid",
+				description: "Cell math factory and core types.",
+				exports: [
+					{ name: "grid", kind: "factory", signature: "(opts: GridOpts) => Grid", description: "Build a Grid record bundling cell↔world conversion, key/unkey, neighbours, and Chebyshev/Manhattan distances. Pure values — no World coupling." },
+					{ name: "Cell", kind: "type", signature: "{ readonly x: number; readonly y: number }", description: "Integer-coordinate cell. Value object — pass by value." },
+					{ name: "Grid", kind: "type", signature: "{ cols, rows, tile, key, unkey, in_bounds, cell_to_world, world_to_cell, chebyshev, manhattan, neighbors4, neighbors8 }", description: "Grid helper bundle returned by grid()." },
+					{ name: "GridOpts", kind: "type", signature: "{ cols: number; rows: number; tile: number }", description: "Options for grid() — `tile` is pixels per cell (square tiles)." },
+				],
+			},
+			{
+				name: "Line of sight",
+				description: "Bresenham line iterator + symmetric FOV.",
+				exports: [
+					{ name: "line", kind: "function", signature: "(a: Cell, b: Cell) => Generator<Cell>", description: "Bresenham line generator yielding every cell from `a` to `b` inclusive. Building block for FOV, projectiles, sight cones." },
+					{ name: "line_of_sight", kind: "function", signature: "(opts: FovOpts) => ReadonlySet<number>", description: "Returns the set of cell-keys visible from `opts.from` within Chebyshev radius. Symmetric: A sees B iff B sees A." },
+					{ name: "FovOpts", kind: "type", signature: "{ from: Cell; radius: number; grid: Grid; is_blocking: (cell: Cell) => boolean; include_origin?: boolean }", description: "Options for line_of_sight(). `include_origin` defaults to true." },
+				],
+			},
+			{
+				name: "Spatial index",
+				description: "Cell-keyed spatial lookup over an entity component.",
+				exports: [
+					{ name: "grid_index", kind: "factory", signature: "<P>(w: World, pos_c: Component<P>, grid: Grid, filter?: Component<any>) => GridIndex", description: "Build a cell-keyed spatial index over entities with `pos_c`. Optional marker `filter` restricts the indexed set. Eagerly refreshes on construction." },
+					{ name: "grid_index_sync_system", kind: "factory", signature: "(idx: GridIndex) => System", description: "System that calls `idx.refresh()` once per tick. Add to `pre` so subsequent systems see fresh lookups." },
+					{ name: "GridIndex", kind: "type", signature: "{ at, all_at, around, refresh }", description: "Spatial index interface — `at(cell)` first match, `all_at(cell)` all matches, `around(cell, r)` everything in a Chebyshev-r square, `refresh()` rebuild." },
+				],
+			},
+			{
+				name: "Movement",
+				description: "Axis-sliding tile move with collision predicate.",
+				exports: [
+					{ name: "move_tile", kind: "function", signature: "<P>(w: World, id: Id, pos_c: Component<P>, grid: Grid, dir: { dx: -1|0|1; dy: -1|0|1 }, opts: TileMoveOpts) => Result<TileMoveResult, EngineError>", description: "Step entity one cell in `dir` with axis-sliding collision (try X then Y separately). Writes resolved world position back via `w.set`." },
+					{ name: "TileMoveOpts", kind: "type", signature: "{ blocked_by: (cell: Cell) => boolean; slide?: boolean }", description: "Options for move_tile(). `slide` defaults to true (axis-by-axis). Set false for hard-block diagonals." },
+					{ name: "TileMoveResult", kind: "type", signature: "{ from: Cell; to: Cell; moved: boolean }", description: "Result of move_tile() — gives consumers the resolved cell so they can react (e.g. did I just step onto the exit?)." },
+				],
+			},
+			{
+				name: "Timing",
+				description: "Calibrate movement speed in cells/sec instead of ticks-per-step.",
+				exports: [
+					{ name: "ticks_per_step", kind: "function", signature: "(cells_per_second: number, fixed_dt: number) => number", description: "Convert a desired cells-per-second to the integer tick gate. Decouples movement speed from grid resolution." },
+				],
+			},
+		],
+	},
+	{
 		subpath: "@f0rbit/forge/presets",
 		description: "Pre-built Bindings for common control schemes — hand to boot() or merge with custom bindings.",
 		categories: [
@@ -425,6 +481,7 @@ export const sections: SubpathSection[] = [
 				description: "Each preset is a Bindings object covering keyboard + gamepad.",
 				exports: [
 					{ name: "presets.movement2d", kind: "constant", signature: "Bindings", description: "2D analogue movement: move.x, move.y axes (WASD / arrows / left stick / d-pad)." },
+					{ name: "presets.movement_4way_digital", kind: "constant", signature: "Bindings", description: "4-way digital-only movement: move.{left,right,up,down}. No axes — ideal for tile-step games where you want only crisp digital edges." },
 					{ name: "presets.movement8way", kind: "constant", signature: "Bindings", description: "8-way digital movement: move.{left,right,up,down} digital + move.x, move.y axes." },
 					{ name: "presets.platformer", kind: "constant", signature: "Bindings", description: "Side-scroller: jump (digital, Space / pad south) + move.x axis." },
 					{ name: "presets.twinstick", kind: "constant", signature: "Bindings", description: "Twin-stick shooter: move.x, move.y, aim.x, aim.y axes." },

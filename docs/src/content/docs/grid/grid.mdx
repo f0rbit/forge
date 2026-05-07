@@ -1,0 +1,84 @@
+---
+title: Grid Factory
+description: Pure cell math — cell↔world conversion, key/unkey, neighbours, Chebyshev/Manhattan distances.
+---
+
+`grid()` returns a value object bundling the cell math every grid game uses. No World coupling — pure functions over `(cols, rows, tile)`. Hold the result on a resource or top-level constant and reuse.
+
+```ts
+import { grid, type Grid } from "@f0rbit/forge/grid";
+
+const g: Grid = grid({ cols: 20, rows: 11, tile: 16 });
+```
+
+## Shape
+
+```ts
+type GridOpts = {
+  cols: number;
+  rows: number;
+  tile: number;        // pixels per cell, square tiles
+};
+
+type Cell = { readonly x: number; readonly y: number };
+
+type Grid = {
+  readonly cols: number;
+  readonly rows: number;
+  readonly tile: number;
+  key:           (x: number, y: number) => number;
+  unkey:         (k: number) => Cell;
+  in_bounds:     (x: number, y: number) => boolean;
+  cell_to_world: (cx: number, cy: number) => { x: number; y: number };
+  world_to_cell: (wx: number, wy: number) => Cell;
+  chebyshev:     (a: Cell, b: Cell) => number;
+  manhattan:     (a: Cell, b: Cell) => number;
+  neighbors4:    (x: number, y: number) => readonly Cell[];
+  neighbors8:    (x: number, y: number) => readonly Cell[];
+};
+```
+
+## Helpers
+
+| Method | Behaviour |
+|---|---|
+| `key(x, y)` | `y * cols + x` — cheap integer key for `Set<number>` / `Map<number, T>`. |
+| `unkey(k)` | Inverse of `key()` — returns `{ x, y }`. |
+| `in_bounds(x, y)` | True when `0 ≤ x < cols && 0 ≤ y < rows`. |
+| `cell_to_world(cx, cy)` | Tile-centred world coordinate (`cx * tile + tile/2, cy * tile + tile/2`). |
+| `world_to_cell(wx, wy)` | Floor-divide world to cell. |
+| `chebyshev(a, b)` | `max(|dx|, |dy|)` — 8-way distance. |
+| `manhattan(a, b)` | `|dx| + |dy|` — 4-way distance (use for A* on 4-way grids). |
+| `neighbors4(x, y)` | Cardinal neighbours: right, left, down, up. |
+| `neighbors8(x, y)` | Cardinal + diagonal — 8 cells. |
+
+## Worked example
+
+```ts
+import { grid } from "@f0rbit/forge/grid";
+
+const g = grid({ cols: 20, rows: 11, tile: 16 });
+
+// build a passable-floor set, indexed by cell-key
+const floors = new Set<number>();
+for (let y = 0; y < g.rows; y++) {
+  for (let x = 0; x < g.cols; x++) {
+    if (passable(x, y)) floors.add(g.key(x, y));
+  }
+}
+
+// look up: is the cell next to the player walkable?
+const here = g.world_to_cell(player.x, player.y);
+for (const n of g.neighbors4(here.x, here.y)) {
+  if (!g.in_bounds(n.x, n.y)) continue;
+  if (floors.has(g.key(n.x, n.y))) {
+    // walkable
+  }
+}
+```
+
+## Notes
+
+- Cells are pass-by-value plain objects. Don't mutate them — they're treated as keys.
+- `cell_to_world` returns the tile **centre**. Pair with `anchor: { x: 0.5, y: 0.5 }` on `sprite_c` for clean alignment.
+- The grid itself is stateless. Persist it in a resource if you need to share across systems, or just close over a top-level `const`.

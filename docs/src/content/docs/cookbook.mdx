@@ -179,18 +179,161 @@ const r = a.play(w, player, "walk");
 if (!r.ok) console.warn("anim play failed", r.error);
 ```
 
-## Periodic systems
+## Periodic systems with `add_periodic`
 
-There is **no** `schedule.add_periodic(N, sys)` helper yet. Gate manually:
+For systems that run on a cadence (regen, AI ticks, projectile fire-rate, tile movement), declare the gate at registration instead of opening the body with `if (ctx.time.tick % step !== 0) return;`:
 
 ```ts
-const slow_system: System = (w, ctx) => {
-  if (ctx.time.tick % 30 !== 0) return;  // every 30 ticks (= 0.5s at 60Hz)
-  // ...
+sch.add_periodic("update", regen_system,    { every: 60 },             "regen");
+sch.add_periodic("update", movement_system, { every: 10 },             "movement");
+sch.add_periodic("update", spawn_wave,      { every: 600, phase: 30 }, "spawn.wave");
+```
+
+`{ every, phase? }` — the wrapped system fires when `ctx.time.tick % every === phase % every`. Use `phase` to interleave two periodic systems with the same period instead of bunching them on tick 0.
+
+For tile movement, pair with [`ticks_per_step`](/forge/grid/ticks-per-step/) so the cadence is expressed in cells/sec rather than ticks-per-step.
+
+## Marker-component queries with `query_data`
+
+`query()` returns the full data tuple including marker stores, so a `Component<true>` marker shows up as an awkward `true` slot:
+
+```ts
+for (const [id, p, , d] of w.query([pos_c, player_c, dir_c]).collect()) {
+  //                ↑ "true" slot you have to skip
+  p.x += d.dx;
+}
+```
+
+Split data from filters with `query_data`:
+
+```ts
+for (const [id, p, d] of w.query_data([pos_c, dir_c], [player_c]).collect()) {
+  // id: Id, p: Pos, d: Dir   — no marker slots
+  p.x += d.dx;
+}
+```
+
+`query_data(data, markers, opts?)` keeps the marker components as filters but drops them from the tuple shape.
+
+## Bulk-spawn levels with `spawn_many`
+
+For level gen / restart / wave spawns, `spawn_many` runs the spawn loop in one call:
+
+```ts
+const floors = /* Set<number> of floor cell-keys */;
+const cells  = Array.from(floors);
+
+const ids = w.spawn_many(cells.length, (i) => {
+  const cell = g.unkey(cells[i]!);
+  const world = g.cell_to_world(cell.x, cell.y);
+  return [
+    [pos_c, { x: world.x, y: world.y }],
+    [floor_c, true],
+  ];
+});
+```
+
+Returns ids in input order — use the index to associate each spawned entity with its source data (cell key, wave row, level slot).
+
+## Hard restart with `clear()` + `despawn_marked`
+
+For "wipe and regenerate" level transitions, you usually want one of two behaviours:
+
+```ts
+// (1) wipe everything (player, walls, score entities, all of it)
+w.clear();
+spawn_level(w);
+
+// (2) wipe only level entities, keep the player
+w.despawn_marked(floor_c);
+w.despawn_marked(enemy_c);
+w.despawn_marked(item_c);
+spawn_level(w);
+```
+
+`world.clear()` (added in v0.1.6) despawns every entity and clears every component store, but resources are untouched — so HUD score, current level, etc., persist across the wipe.
+
+`world.despawn_marked(...markers)` is the surgical alternative — bulk-despawn every entity that has **all** of the listed markers, returning the count. Use it for level transitions where the player carries over.
+
+## Tile movement with `move_tile`
+
+Axis-sliding tile movement with a collision predicate — the canonical "try X, then try Y from the resulting cell" loop:
+
+```ts
+import { move_tile, grid, ticks_per_step } from "@f0rbit/forge/grid";
+
+const g = grid({ cols: 20, rows: 11, tile: 16 });
+const every = ticks_per_step(8, ctx.time.fixed_dt);   // 8 cells/sec
+
+const movement_system: System = (w) => {
+  for (const [id, , d] of w.query_data([pos_c, dir_c], [player_c]).collect()) {
+    if (d.dx === 0 && d.dy === 0) continue;
+    const r = move_tile(w, id, pos_c, g, d, {
+      blocked_by: (c) => walls.has(g.key(c.x, c.y)),
+    });
+    if (r.ok && r.value.moved && r.value.to.x === exit.x && r.value.to.y === exit.y) {
+      ctx.res.get(phase_r)!.value.state = "won";
+    }
+  }
+};
+
+sch.add_periodic("update", movement_system, { every }, "movement");
+```
+
+See [Move Tile](/forge/grid/move-tile/) for slide semantics and the full result shape.
+
+## Pixel-perfect FOV with `line_of_sight`
+
+For roguelike sight, fog-of-war, sight cones — symmetric Bresenham line-of-sight.
+
+```ts
+import { line_of_sight, grid_index, grid_index_sync_system } from "@f0rbit/forge/grid";
+
+const wall_idx = grid_index(w, pos_c, g, wall_c);
+sch.add("pre", grid_index_sync_system(wall_idx), "wall.idx");
+
+const fov_system: System = (w) => {
+  const players = w.query_data([pos_c], [player_c]).collect();
+  for (const [, pp] of players) {
+    const visible = line_of_sight({
+      from: g.world_to_cell(pp.x, pp.y),
+      radius: 6,
+      grid: g,
+      is_blocking: (c) => wall_idx.at(c) !== null,
+    });
+    apply_visibility(visible);
+  }
 };
 ```
 
-(*Candidate addition for future versions — flag this if you find yourself doing it a lot.*)
+### Delta-pattern for sprite visibility
+
+Don't sweep every tile every tick — keep the previous visible set and only toggle sprites whose visibility actually changed:
+
+```ts
+let last_visible: ReadonlySet<number> = new Set();
+
+const apply_visibility = (visible: ReadonlySet<number>) => {
+  for (const k of visible) if (!last_visible.has(k)) set_tile_visible(k, true);
+  for (const k of last_visible) if (!visible.has(k)) set_tile_visible(k, false);
+  last_visible = visible;
+};
+```
+
+The full sweep allocates + does a get/spread/set round-trip per tile; the delta only touches the symmetric difference.
+
+## Calibrate movement speed with `ticks_per_step`
+
+Tile-step games need a "ticks between steps" gate. Designing in cells/sec instead of ticks decouples movement speed from grid resolution — change `tile` size and movement still feels the same.
+
+```ts
+import { ticks_per_step } from "@f0rbit/forge/grid";
+
+const every = ticks_per_step(8, ctx.time.fixed_dt);  // 8 cells/sec
+sch.add_periodic("update", movement_system, { every }, "movement");
+```
+
+See the [reference table](/forge/grid/ticks-per-step/) for common configurations.
 
 ## Plugin pattern
 

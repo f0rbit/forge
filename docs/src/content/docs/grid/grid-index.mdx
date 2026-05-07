@@ -1,0 +1,79 @@
+---
+title: Grid Index
+description: Cell-keyed spatial lookup over an entity component, with optional marker filter.
+---
+
+`grid_index()` maintains a cell-keyed `Map<key, Id[]>` over entities with a position component, optionally filtered by a marker. Pair it with `grid_index_sync_system` to refresh in `pre` so subsequent systems see fresh lookups.
+
+```ts
+import { grid, grid_index, grid_index_sync_system } from "@f0rbit/forge/grid";
+
+const g = grid({ cols: 20, rows: 11, tile: 16 });
+const wall_idx = grid_index(world, pos_c, g, wall_c);
+
+schedule.add("pre", grid_index_sync_system(wall_idx), "wall.idx");
+```
+
+## Shape
+
+```ts
+type GridIndex = {
+  at:      (cell: Cell) => Id | null;          // first match
+  all_at:  (cell: Cell) => readonly Id[];      // all matches
+  around:  (cell: Cell, r: number) => readonly Id[];   // Chebyshev-r square
+  refresh: () => void;
+};
+
+const grid_index: <P extends { x: number; y: number }>(
+  w: World,
+  pos_c: Component<P>,
+  grid: Grid,
+  filter?: Component<any>,
+) => GridIndex;
+
+const grid_index_sync_system: (idx: GridIndex) => System;
+```
+
+## Operations
+
+| Method | Behaviour |
+|---|---|
+| `at(cell)` | First entity at the cell, or `null` if empty. |
+| `all_at(cell)` | All entities at the cell. Empty array if none / out of bounds. |
+| `around(cell, r)` | All entities in the Chebyshev-r square centred on `cell`. |
+| `refresh()` | Rebuild from the current world state. Cheap: O(matched-entities). |
+
+## Filter component
+
+`grid_index(w, pos_c, g, wall_c)` only indexes entities that have **both** `pos_c` and `wall_c`. Use it to keep walls, items, monsters in separate indexes:
+
+```ts
+const monsters = grid_index(w, pos_c, g, monster_c);
+const items    = grid_index(w, pos_c, g, item_c);
+const walls    = grid_index(w, pos_c, g, wall_c);
+
+schedule.add("pre", grid_index_sync_system(monsters), "monster.idx");
+schedule.add("pre", grid_index_sync_system(items),    "item.idx");
+schedule.add("pre", grid_index_sync_system(walls),    "wall.idx");
+```
+
+## Lookup pattern
+
+```ts
+const ai_system: System = (w, ctx) => {
+  for (const [id, p] of w.query_data([pos_c], [enemy_c]).collect()) {
+    const cell = g.world_to_cell(p.x, p.y);
+    const targets = monsters.around(cell, 3);   // Chebyshev radius 3
+    if (targets.length > 0) {
+      // attack first visible target
+    }
+  }
+};
+```
+
+## Notes
+
+- `refresh()` is called eagerly on construction. After that, refresh on a cadence — typically every tick in `pre`, or only when entities move (use `add_periodic` with `every: N` if your game updates positions infrequently).
+- The index is **rebuilt from scratch** on each refresh; it does not maintain incremental deltas. For thousands of entities this is still cheap, but profile before scaling.
+- Out-of-bounds cells silently return `null` / `[]` — no error path.
+- Cell-keying ties this index to a `Grid`. Continuous-movement games should use a different structure (quadtree, AABB grid).

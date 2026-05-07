@@ -1,0 +1,53 @@
+---
+title: Grid
+description: Opt-in subpath for grid-game primitives — cell math, Bresenham line, FOV, spatial index, axis-sliding tile movement.
+---
+
+`@f0rbit/forge/grid` bundles the primitives every grid-based game ends up writing: cell math, Bresenham line iteration, line-of-sight, a cell-keyed spatial index, axis-sliding tile movement, and a tick/cell-rate calibration helper. Continuous-movement games skip this import and ship zero grid code (`sideEffects: false`, tree-shakeable per subpath).
+
+```ts
+import {
+  grid,
+  line,
+  line_of_sight,
+  grid_index,
+  grid_index_sync_system,
+  move_tile,
+  ticks_per_step,
+} from "@f0rbit/forge/grid";
+```
+
+## Exports
+
+| Symbol | Kind | Page |
+|---|---|---|
+| [`grid`](/forge/grid/grid/) | factory | Build a `Grid` record bundling cell↔world conversion, key/unkey, neighbours, distances. |
+| [`line`](/forge/grid/line/) | function | Bresenham generator yielding every cell from `a` to `b` inclusive. |
+| [`line_of_sight`](/forge/grid/line-of-sight/) | function | Symmetric FOV — set of visible cell-keys from `from` within radius. |
+| [`grid_index`](/forge/grid/grid-index/) | factory | Cell-keyed spatial index over entities with `pos_c`. |
+| [`grid_index_sync_system`](/forge/grid/grid-index/) | factory | System that refreshes the index each tick. |
+| [`move_tile`](/forge/grid/move-tile/) | function | Step one cell with axis-sliding collision predicate. |
+| [`ticks_per_step`](/forge/grid/ticks-per-step/) | function | Convert cells/sec → integer tick gate. |
+| `Cell`, `Grid`, `GridOpts` | types | Returned by `grid()`. |
+| `FovOpts` | type | Options for `line_of_sight`. |
+| `GridIndex` | type | Returned by `grid_index`. |
+| `TileMoveOpts`, `TileMoveResult` | types | `move_tile` shape. |
+
+## When to import `/grid`
+
+Roguelikes, sokoban, snake, tactics, match-3, factory-builder, top-down RPG — anything cell-aligned. If your game is bullet-hell, platformer, or shooter, you don't need any of this; stay on the main entry.
+
+## Pairing with the input layer
+
+For tile-step games, pair the grid primitives with [`presets.movement_4way_digital`](/forge/input/presets/) (digital edges only — no axes, no diagonals) or [`presets.movement8way`](/forge/input/presets/) (digital edges + axes for analog smoothing).
+
+```ts
+import { presets } from "@f0rbit/forge/presets";
+import { boot } from "@f0rbit/forge/pixi";
+
+await boot({
+  mount: "#root",
+  bindings: presets.movement_4way_digital,
+  // ...
+});
+```

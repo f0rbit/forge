@@ -1,0 +1,73 @@
+---
+title: Ticks per Step
+description: Convert cells/sec to the integer tick gate. Decouples movement speed from grid resolution.
+---
+
+`ticks_per_step(cells_per_second, fixed_dt)` returns the integer number of ticks between movement steps to achieve the requested cells/sec rate. Designing in cells/sec instead of ticks-per-step decouples timing from grid resolution — change `tile` size and your movement still feels the same.
+
+```ts
+import { ticks_per_step } from "@f0rbit/forge/grid";
+
+const every = ticks_per_step(8, ctx.time.fixed_dt);
+//   8 cells/sec at fixed_dt = 1/60 → every = 8
+//   8 cells/sec at fixed_dt = 1/30 → every = 4
+```
+
+## Shape
+
+```ts
+const ticks_per_step: (cells_per_second: number, fixed_dt: number) => number;
+```
+
+Implementation: `Math.max(1, Math.round(1 / (cells_per_second * fixed_dt)))`. Returns at least 1 — never returns a step gate of 0.
+
+## Reference table (`fixed_dt = 1/60`)
+
+| `cells_per_second` | `every` (ticks) | Apparent speed |
+|---:|---:|---|
+|  1  | 60 | one cell per second — slow puzzle pace |
+|  2  | 30 | two cells per second — turn-based feel |
+|  4  | 15 | four cells per second — relaxed roguelike |
+|  6  | 10 | six cells per second — dungeon-walk default |
+|  8  |  8 | snappy action-roguelike |
+| 12  |  5 | fast — twin-stick or shooter |
+| 30  |  2 | very fast — bullet/projectile cadence |
+| 60  |  1 | one cell per tick — shouldn't generally need this |
+
+## Reference table (`fixed_dt = 1/30`)
+
+| `cells_per_second` | `every` (ticks) |
+|---:|---:|
+|  2  | 15 |
+|  4  |  8 |
+|  6  |  5 |
+|  8  |  4 |
+| 15  |  2 |
+| 30  |  1 |
+
+## Pairing with `add_periodic`
+
+```ts
+import { ticks_per_step } from "@f0rbit/forge/grid";
+import { schedule } from "@f0rbit/forge";
+
+const sch = schedule();
+const every = ticks_per_step(8, time.fixed_dt);
+
+sch.add_periodic("update", movement_system, { every }, "movement");
+```
+
+## Pairing with `move_tile`
+
+When you call `move_tile` inside a periodic system, the gate handles cadence — the system body just performs one step:
+
+```ts
+const movement_system: System = (w) => {
+  for (const [id, , d] of w.query_data([pos_c, dir_c], [player_c])) {
+    if (d.dx === 0 && d.dy === 0) continue;
+    move_tile(w, id, pos_c, g, d, { blocked_by });
+  }
+};
+
+sch.add_periodic("update", movement_system, { every: ticks_per_step(8, fixed_dt) }, "movement");
+```

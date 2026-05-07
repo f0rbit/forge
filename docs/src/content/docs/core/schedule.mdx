@@ -32,3 +32,36 @@ sch.tick(world, ctx);  // pumps input + runs every stage in order
 The schedule fires `input.advance` before stages and `debug.frame()` after `render` automatically. You don't add input or debug systems by hand — the schedule does it.
 
 The `startup_done` flag is per-`schedule()` instance; if you `clear()` the world via `snapshotter.restore`, startup will not re-fire (this matches "loaded a save → don't re-spawn the level"). Recreate the schedule if you want a fresh startup pass.
+
+## Periodic systems — `add_periodic`
+
+Plenty of systems run on a cadence — projectile fire-rate, AI ticks, regen, navmesh re-pathfinding, tile movement. Instead of opening every system body with `if (ctx.time.tick % step !== 0) return;`, declare the gate once at registration:
+
+```ts
+import { schedule } from "@f0rbit/forge";
+
+const sch = schedule();
+
+sch.add_periodic("update", movement_system, { every: 10 }, "movement");
+sch.add_periodic("update", regen_system,    { every: 60, phase: 30 }, "regen");
+//                                                          ↑ runs on tick 30, 90, 150, …
+```
+
+Signature:
+
+```ts
+type PeriodicOpts = { every: number; phase?: number };
+
+schedule.add_periodic(
+  stage: Stage,
+  system: System,
+  opts: PeriodicOpts,
+  name?: string,
+): Schedule;
+```
+
+The wrapper fires when `ctx.time.tick % every === phase % every`. `every: 1` is equivalent to `add`. `phase` defaults to `0` and lets two periodic systems with the same period interleave instead of bunching on tick 0.
+
+`every` must be a positive integer; `phase` a non-negative integer. The schedule throws on registration if either is invalid (programmer-error guard, not a recoverable runtime error).
+
+For grid-game tile movement, pair with [`ticks_per_step(cells_per_second, fixed_dt)`](/forge/grid/ticks-per-step/) so movement speed stays decoupled from grid resolution.

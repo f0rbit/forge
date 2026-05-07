@@ -31,10 +31,56 @@ w.count();                  // → 0
 |---|---|---|
 | `spawn` | `(...c: [Component<T>, T][]) => Id` | Returns a fresh integer id. |
 | `spawn_at` | `(id: Id, ...c) => void` | Used by snapshot restore — preserves the id. Bumps `next_id` if greater. |
+| `spawn_many` | `(count, factory) => readonly Id[]` | Bulk-spawn `count` entities; ids returned in input order. See below. |
 | `despawn` | `(id) => Result<void, EngineError>` | Removes from every store. |
+| `despawn_marked` | `(...markers) => number` | Bulk-despawn every entity with ALL given markers. Returns count. |
 | `has` | `(id, c) => boolean` | Pure check, no allocation. |
 | `get` | `(id, c) => Result<T, EngineError>` | `kind: "component_missing"` if absent. |
 | `set` | `(id, c, data) => Result<void, EngineError>` | Adds the component if not present and bumps the version. Errors `entity_not_found` if despawned. |
 | `remove` | `(id, c) => Result<void, EngineError>` | Errors `component_missing` if not present. |
 | `query` | `(cs, opts?) => Query<C>` | See [Queries](/forge/core/queries/). |
+| `query_data` | `(data, markers, opts?) => Query<D>` | Marker-filter split — see [Queries](/forge/core/queries/). |
 | `count` | `() => number` | Live entity count. |
+| `clear` | `() => void` | Despawns every entity. Resources are NOT cleared. |
+
+## Bulk spawn — `spawn_many`
+
+For level setup, restart, or wave spawns, `spawn_many` runs the spawn loop in one call:
+
+```ts
+const ids = w.spawn_many(100, (i) => [
+  [pos_c, { x: (i % 20) * 16, y: Math.floor(i / 20) * 16 }],
+  [floor_c, true],
+]);
+```
+
+Signature:
+
+```ts
+world.spawn_many(
+  count: number,
+  factory: (i: number) => readonly [Component<any>, any][],
+): readonly Id[];
+```
+
+`count` must be a non-negative integer; the factory is called `count` times with `i = 0..count-1`. Returns ids in input order.
+
+## Bulk despawn — `despawn_marked`
+
+For level transitions, restarts, or "kill every X", `despawn_marked` despawns every entity that has **all** the listed marker components:
+
+```ts
+w.despawn_marked(floor_c);              // every entity with floor_c
+w.despawn_marked(enemy_c, alive_c);     // every alive enemy
+w.despawn_marked();                     // no-op, returns 0
+```
+
+Signature:
+
+```ts
+world.despawn_marked(...markers: readonly Component<any>[]): number;
+```
+
+Returns the number of entities despawned. Snapshots the matching id set before mutating, so it's safe to call mid-iteration of unrelated queries.
+
+For a hard reset (clear everything regardless of markers), use `world.clear()` instead.

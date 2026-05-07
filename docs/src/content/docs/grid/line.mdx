@@ -1,0 +1,47 @@
+---
+title: Line
+description: Bresenham line generator yielding every cell from a to b inclusive.
+---
+
+`line(a, b)` is a Bresenham line generator yielding every integer cell between two endpoints, inclusive of both. It's the building block underneath [`line_of_sight`](/forge/grid/line-of-sight/) and the natural primitive for projectile previews, path reveals, AI sight cones, and ranged-attack lines.
+
+```ts
+import { line } from "@f0rbit/forge/grid";
+
+for (const cell of line({ x: 0, y: 0 }, { x: 4, y: 2 })) {
+  console.log(cell);
+}
+// → { x:0, y:0 } { x:1, y:1 } { x:2, y:1 } { x:3, y:2 } { x:4, y:2 }
+```
+
+## Shape
+
+```ts
+const line = function* (a: Cell, b: Cell): Generator<Cell>;
+```
+
+## Semantics
+
+- Yields every cell from `a` to `b`, **inclusive** of both endpoints.
+- Length is `max(|dx|, |dy|) + 1`.
+- Pure cell math — does not depend on a `Grid` instance. Works with any `{ x, y }` integer pair.
+- Symmetric in spirit (`line(B, A)` traces the same cells in reverse), modulo Bresenham tiebreaks on perfect diagonals.
+
+## Use as projectile preview
+
+```ts
+import { line, grid } from "@f0rbit/forge/grid";
+
+const g = grid({ cols: 20, rows: 11, tile: 16 });
+
+const preview = (from: Cell, target: Cell, blockers: Set<number>): Cell[] => {
+  const cells: Cell[] = [];
+  for (const c of line(from, target)) {
+    if (blockers.has(g.key(c.x, c.y))) break;
+    cells.push(c);
+  }
+  return cells;
+};
+```
+
+For symmetric FOV (radius-bounded, multi-target), prefer [`line_of_sight`](/forge/grid/line-of-sight/) — it walks `line()` to every target cell within Chebyshev radius.

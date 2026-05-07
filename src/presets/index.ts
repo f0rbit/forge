@@ -30,6 +30,33 @@ const movement2d: Bindings = {
 	deadzone: 0.15,
 };
 
+const movement_4way_digital: Bindings = {
+	digital: {
+		"move.left": [
+			{ kind: "key", code: "ArrowLeft" },
+			{ kind: "key", code: "KeyA" },
+			{ kind: "pad.button", button: PAD_DPAD_LEFT },
+		],
+		"move.right": [
+			{ kind: "key", code: "ArrowRight" },
+			{ kind: "key", code: "KeyD" },
+			{ kind: "pad.button", button: PAD_DPAD_RIGHT },
+		],
+		"move.up": [
+			{ kind: "key", code: "ArrowUp" },
+			{ kind: "key", code: "KeyW" },
+			{ kind: "pad.button", button: PAD_DPAD_UP },
+		],
+		"move.down": [
+			{ kind: "key", code: "ArrowDown" },
+			{ kind: "key", code: "KeyS" },
+			{ kind: "pad.button", button: PAD_DPAD_DOWN },
+		],
+	},
+	axes: {},
+	deadzone: 0,
+};
+
 const movement8way: Bindings = {
 	digital: {
 		"move.left": [
@@ -138,6 +165,7 @@ const menu: Bindings = {
 
 export const presets = {
 	movement2d,
+	movement_4way_digital,
 	movement8way,
 	platformer,
 	twinstick,

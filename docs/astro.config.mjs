@@ -106,6 +106,18 @@ export default defineConfig({
 					],
 				},
 				{
+					label: "Grid",
+					items: [
+						{ label: "Overview",       slug: "grid/overview" },
+						{ label: "Grid Factory",   slug: "grid/grid" },
+						{ label: "Line",           slug: "grid/line" },
+						{ label: "Line of Sight",  slug: "grid/line-of-sight" },
+						{ label: "Grid Index",     slug: "grid/grid-index" },
+						{ label: "Move Tile",      slug: "grid/move-tile" },
+						{ label: "Ticks per Step", slug: "grid/ticks-per-step" },
+					],
+				},
+				{
 					label: "Testing",
 					items: [{ label: "Test Harness", slug: "testing/test-harness" }],
 				},

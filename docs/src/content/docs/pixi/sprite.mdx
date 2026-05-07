@@ -13,6 +13,7 @@ type SpriteData = {
   tint?: number;                      // 0xRRGGBB
   visible?: boolean;
   z?: number;                         // zIndex within world container
+  scale?: { x: number; y: number };   // non-uniform scale, defaults (1, 1)
   node?: Sprite | null;               // populated lazily by sprite_sync_system
 };
 
@@ -32,3 +33,31 @@ The `sprite_sync_system` (added by `boot` to the `post` stage) watches `(pos_c, 
 - Despawn cleanup: any sprite whose entity vanished from the query gets `removeFromParent()` + `destroy()`.
 
 The lazy-mount means you can `w.set(id, sprite_c, {...})` without ever touching PIXI — the system handles the pixi-side construction.
+
+## Scale
+
+`SpriteData.scale` is the optional `{ x: number; y: number }` non-uniform scale applied via PIXI's `Sprite.scale.set(x, y)` after texture assignment. Defaults to `(1, 1)` when absent.
+
+```ts
+// 2× upscale for HUD overlays vs world sprites
+w.set(hud_icon, sprite_c, {
+  texture: "ui",
+  frame: "heart",
+  scale: { x: 2, y: 2 },
+});
+
+// horizontal flip
+w.set(player, sprite_c, {
+  texture: "hero",
+  anchor: { x: 0.5, y: 0.5 },
+  scale: { x: -1, y: 1 },
+});
+```
+
+This is the only valid way to do non-uniform scale on a PIXI sprite. Common uses:
+
+- HUD vs world sprite ratios on a single design surface.
+- Pixel-art atlas frames at non-1× factors (e.g. 16×16 atlas → 8 px tiles via `scale: { x: 0.5, y: 0.5 }`).
+- Mirroring/flipping for left/right-facing sprites without a separate atlas frame.
+
+The system applies scale every tick the entity is in the `(pos_c, sprite_c)` query, so reactive changes (`w.set(id, sprite_c, { ...sd, scale: { x: -1, y: 1 } })`) take effect on the next post-tick.

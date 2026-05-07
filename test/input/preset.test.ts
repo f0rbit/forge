@@ -3,8 +3,45 @@ import { input, type RawInput } from "../../src/index.ts";
 import { presets } from "../../src/presets/index.ts";
 
 describe("presets — keys exist", () => {
-	test("all five presets exposed", () => {
-		expect(Object.keys(presets).sort()).toEqual(["menu", "movement2d", "movement8way", "platformer", "twinstick"]);
+	test("all six presets exposed", () => {
+		expect(Object.keys(presets).sort()).toEqual([
+			"menu",
+			"movement2d",
+			"movement8way",
+			"movement_4way_digital",
+			"platformer",
+			"twinstick",
+		]);
+	});
+});
+
+describe("presets.movement_4way_digital", () => {
+	test("WASD drives digital actions", () => {
+		const i = input(presets.movement_4way_digital);
+		i.pump([{ kind: "key.down", code: "KeyW", pad: null, t: 0 }]);
+		expect(i.pressed("move.up")).toBe(true);
+		expect(i.pressed("move.down")).toBe(false);
+		i.pump([
+			{ kind: "key.up", code: "KeyW", pad: null, t: 1 },
+			{ kind: "key.down", code: "KeyD", pad: null, t: 1 },
+		]);
+		expect(i.pressed("move.right")).toBe(true);
+	});
+
+	test("arrow keys drive digital actions", () => {
+		const i = input(presets.movement_4way_digital);
+		i.pump([{ kind: "key.down", code: "ArrowLeft", pad: null, t: 0 }]);
+		expect(i.pressed("move.left")).toBe(true);
+	});
+
+	test("no axes configured", () => {
+		expect(Object.keys(presets.movement_4way_digital.axes)).toEqual([]);
+	});
+
+	test("digital-only edges (just_pressed semantics)", () => {
+		const i = input(presets.movement_4way_digital);
+		i.pump([{ kind: "key.down", code: "ArrowUp", pad: null, t: 0 }]);
+		expect(i.just("move.up")).toBe(true);
 	});
 });
 

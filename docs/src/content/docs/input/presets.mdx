@@ -10,6 +10,7 @@ import { presets } from "@f0rbit/forge/presets";
 | Preset | Actions | Notes |
 |---|---|---|
 | `movement2d` | `move.x`, `move.y` (axes) | Arrows + WASD + left stick + d-pad pairs. |
+| `movement_4way_digital` | `move.left`, `move.right`, `move.up`, `move.down` (digital) | Tile-step games — digital edges only, no axes, no diagonals. |
 | `movement8way` | `move.left`, `move.right`, `move.up`, `move.down` (digital), plus the `movement2d` axes | Useful when you want both stick smoothing and crisp digital edges. |
 | `platformer` | `jump` (digital, Space + pad south), `move.x` (axis) | Side-scrolling. |
 | `twinstick` | `move.x`, `move.y` (left stick / WASD), `aim.x`, `aim.y` (right stick / arrows) | Top-down shooter. |
