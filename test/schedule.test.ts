@@ -47,28 +47,33 @@ describe("schedule", () => {
 		expect(calls).toEqual(["b"]);
 	});
 
-	describe("add_periodic", () => {
-		const tick_n = (sch: ReturnType<typeof schedule>, w: ReturnType<typeof world>, n: number) => {
-			const t = time();
-			const ctx = make_ctx({ time: t });
-			const fired_on: number[] = [];
-			let ran_with_tick: number | null = null;
-			void ran_with_tick;
-			for (let i = 0; i < n; i++) {
-				ctx.time.advance(t.fixed_dt);
-				ran_with_tick = ctx.time.tick;
-				sch.run("update", w, ctx);
-			}
-			return fired_on;
-		};
-		void tick_n;
+	describe("add with opts", () => {
+		test("name as bare string positional argument is accepted", () => {
+			const sch = schedule();
+			const calls: string[] = [];
+			sch.add("update", () => calls.push("a"), "a");
+			sch.add("update", () => calls.push("b"), "b");
+			sch.remove("a");
+			sch.run("update", world(), make_ctx());
+			expect(calls).toEqual(["b"]);
+		});
 
-		test("fires only on ticks where tick % every === 0 (phase default)", () => {
+		test("name as opts.name is accepted", () => {
+			const sch = schedule();
+			const calls: string[] = [];
+			sch.add("update", () => calls.push("a"), { name: "a" });
+			sch.add("update", () => calls.push("b"), { name: "b" });
+			sch.remove("a");
+			sch.run("update", world(), make_ctx());
+			expect(calls).toEqual(["b"]);
+		});
+
+		test("opts.every fires only on ticks where tick % every === 0 (phase default)", () => {
 			const sch = schedule();
 			const t = time();
 			const ctx = make_ctx({ time: t });
 			const fired: number[] = [];
-			sch.add_periodic("update", (_w, c) => fired.push(c.time.tick), { every: 6 });
+			sch.add("update", (_w, c) => fired.push(c.time.tick), { every: 6 });
 			const w = world();
 			for (let i = 0; i < 18; i++) {
 				sch.run("update", w, ctx);
@@ -77,12 +82,12 @@ describe("schedule", () => {
 			expect(fired).toEqual([0, 6, 12]);
 		});
 
-		test("every: 1 is identical to add (fires every tick)", () => {
+		test("every: 1 fires every tick (matches plain add)", () => {
 			const sch = schedule();
 			const t = time();
 			const ctx = make_ctx({ time: t });
 			const fired: number[] = [];
-			sch.add_periodic("update", (_w, c) => fired.push(c.time.tick), { every: 1 });
+			sch.add("update", (_w, c) => fired.push(c.time.tick), { every: 1 });
 			const w = world();
 			for (let i = 0; i < 5; i++) {
 				sch.run("update", w, ctx);
@@ -91,12 +96,12 @@ describe("schedule", () => {
 			expect(fired).toEqual([0, 1, 2, 3, 4]);
 		});
 
-		test("phase shifts the firing offset", () => {
+		test("opts.phase shifts the firing offset", () => {
 			const sch = schedule();
 			const t = time();
 			const ctx = make_ctx({ time: t });
 			const fired: number[] = [];
-			sch.add_periodic("update", (_w, c) => fired.push(c.time.tick), { every: 6, phase: 3 });
+			sch.add("update", (_w, c) => fired.push(c.time.tick), { every: 6, phase: 3 });
 			const w = world();
 			for (let i = 0; i < 18; i++) {
 				sch.run("update", w, ctx);
@@ -110,8 +115,8 @@ describe("schedule", () => {
 			const t = time();
 			const ctx = make_ctx({ time: t });
 			const fired: Array<{ name: string; tick: number }> = [];
-			sch.add_periodic("update", (_w, c) => fired.push({ name: "fast", tick: c.time.tick }), { every: 2 });
-			sch.add_periodic("update", (_w, c) => fired.push({ name: "slow", tick: c.time.tick }), { every: 3 });
+			sch.add("update", (_w, c) => fired.push({ name: "fast", tick: c.time.tick }), { every: 2 });
+			sch.add("update", (_w, c) => fired.push({ name: "slow", tick: c.time.tick }), { every: 3 });
 			const w = world();
 			for (let i = 0; i < 6; i++) {
 				sch.run("update", w, ctx);
@@ -128,22 +133,22 @@ describe("schedule", () => {
 
 		test("every: 0 throws at registration", () => {
 			const sch = schedule();
-			expect(() => sch.add_periodic("update", () => {}, { every: 0 })).toThrow(/positive integer/);
+			expect(() => sch.add("update", () => {}, { every: 0 })).toThrow(/positive integer/);
 		});
 
 		test("negative every throws at registration", () => {
 			const sch = schedule();
-			expect(() => sch.add_periodic("update", () => {}, { every: -3 })).toThrow(/positive integer/);
+			expect(() => sch.add("update", () => {}, { every: -3 })).toThrow(/positive integer/);
 		});
 
 		test("non-integer every throws at registration", () => {
 			const sch = schedule();
-			expect(() => sch.add_periodic("update", () => {}, { every: 2.5 })).toThrow(/positive integer/);
+			expect(() => sch.add("update", () => {}, { every: 2.5 })).toThrow(/positive integer/);
 		});
 
 		test("negative phase throws at registration", () => {
 			const sch = schedule();
-			expect(() => sch.add_periodic("update", () => {}, { every: 4, phase: -1 })).toThrow(/non-negative integer/);
+			expect(() => sch.add("update", () => {}, { every: 4, phase: -1 })).toThrow(/non-negative integer/);
 		});
 
 		test("named periodic systems can be removed by name", () => {
@@ -151,7 +156,7 @@ describe("schedule", () => {
 			const t = time();
 			const ctx = make_ctx({ time: t });
 			let count = 0;
-			sch.add_periodic("update", () => count++, { every: 1 }, "p");
+			sch.add("update", () => count++, { every: 1, name: "p" });
 			sch.remove("p");
 			const w = world();
 			for (let i = 0; i < 3; i++) {
@@ -161,10 +166,10 @@ describe("schedule", () => {
 			expect(count).toBe(0);
 		});
 
-		test("returns Schedule for chaining", () => {
+		test("add with opts returns Schedule for chaining", () => {
 			const sch = schedule();
 			const result: System = () => {};
-			expect(sch.add_periodic("update", result, { every: 2 })).toBe(sch);
+			expect(sch.add("update", result, { every: 2 })).toBe(sch);
 		});
 	});
 });

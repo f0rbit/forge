@@ -121,7 +121,7 @@ describe("query", () => {
 		expect(calls.length).toBe(0);
 	});
 
-	describe("query_data", () => {
+	describe("marker auto-elision", () => {
 		const player = component<true>("player");
 		const enemy = component<true>("enemy");
 
@@ -131,14 +131,14 @@ describe("query", () => {
 			w.spawn([pos, { x: 5, y: 5 }], [vel, { dx: 0, dy: 0 }], [enemy, true]);
 			w.spawn([pos, { x: 9, y: 9 }], [player, true]);
 
-			const ids = w.query_data([pos, vel] as const, [player] as const).collect().map(([id]) => id);
+			const ids = w.query([pos, vel, player] as const).collect().map(([id]) => id);
 			expect(ids).toEqual([p]);
 		});
 
-		test("yielded tuple length equals data length (markers stripped)", () => {
+		test("yielded tuple drops marker slots (only data + id)", () => {
 			const w = world();
 			w.spawn([pos, { x: 1, y: 2 }], [vel, { dx: 3, dy: 4 }], [player, true]);
-			const all = w.query_data([pos, vel] as const, [player] as const).collect();
+			const all = w.query([pos, vel, player] as const).collect();
 			expect(all).toHaveLength(1);
 			const tuple = all[0]!;
 			expect(tuple).toHaveLength(3);
@@ -147,22 +147,22 @@ describe("query", () => {
 			expect(v).toEqual({ dx: 3, dy: 4 });
 		});
 
-		test("empty markers list behaves like plain query", () => {
+		test("plain data query still yields all data slots", () => {
 			const w = world();
 			const a = w.spawn([pos, { x: 0, y: 0 }], [vel, { dx: 1, dy: 0 }]);
 			w.spawn([pos, { x: 5, y: 5 }]);
 
-			const ids = w.query_data([pos, vel] as const, [] as const).collect().map(([id]) => id);
+			const ids = w.query([pos, vel] as const).collect().map(([id]) => id);
 			expect(ids).toEqual([a]);
 		});
 
-		test("empty data with markers yields entity ids and an empty data tuple", () => {
+		test("marker-only query yields entity ids with empty data tuple", () => {
 			const w = world();
 			const a = w.spawn([pos, { x: 0, y: 0 }], [player, true]);
 			w.spawn([pos, { x: 5, y: 5 }]);
 			const c = w.spawn([player, true]);
 
-			const tuples = w.query_data([] as const, [player] as const).collect();
+			const tuples = w.query([player] as const).collect();
 			const ids = tuples.map(([id]) => id);
 			expect(ids).toContain(a);
 			expect(ids).toContain(c);
@@ -175,8 +175,8 @@ describe("query", () => {
 		test("marker order is irrelevant", () => {
 			const w = world();
 			w.spawn([pos, { x: 0, y: 0 }], [player, true], [enemy, true]);
-			const a_first = w.query_data([pos] as const, [player, enemy] as const).collect().map(([id]) => id);
-			const e_first = w.query_data([pos] as const, [enemy, player] as const).collect().map(([id]) => id);
+			const a_first = w.query([pos, player, enemy] as const).collect().map(([id]) => id);
+			const e_first = w.query([pos, enemy, player] as const).collect().map(([id]) => id);
 			expect(a_first).toEqual(e_first);
 			expect(a_first).toHaveLength(1);
 		});
@@ -187,7 +187,7 @@ describe("query", () => {
 			const corpse = w.spawn([pos, { x: 5, y: 5 }], [player, true], [dead, true]);
 
 			const ids = w
-				.query_data([pos] as const, [player] as const, { without: [dead] })
+				.query([pos, player] as const, { without: [dead] })
 				.collect()
 				.map(([id]) => id);
 			expect(ids).toContain(alive);
@@ -197,18 +197,28 @@ describe("query", () => {
 		test("returns empty when a marker store is missing entirely", () => {
 			const w = world();
 			w.spawn([pos, { x: 0, y: 0 }]);
-			const out = w.query_data([pos] as const, [player] as const).collect();
+			const out = w.query([pos, player] as const).collect();
 			expect(out).toEqual([]);
 		});
 
 		test("collect returns a snapshot independent of subsequent mutation", () => {
 			const w = world();
 			for (let i = 0; i < 3; i++) w.spawn([pos, { x: i, y: 0 }], [player, true]);
-			const snap = w.query_data([pos] as const, [player] as const).collect();
+			const snap = w.query([pos, player] as const).collect();
 			expect(snap).toHaveLength(3);
 			for (const [id] of snap) w.despawn(id);
 			expect(w.count()).toBe(0);
 			expect(snap).toHaveLength(3);
+		});
+
+		test("interleaved markers and data preserve data order", () => {
+			const w = world();
+			w.spawn([pos, { x: 1, y: 2 }], [vel, { dx: 3, dy: 4 }], [player, true]);
+			const [tuple] = w.query([pos, player, vel] as const).collect();
+			expect(tuple).toHaveLength(3);
+			const [, p, v] = tuple!;
+			expect(p).toEqual({ x: 1, y: 2 });
+			expect(v).toEqual({ dx: 3, dy: 4 });
 		});
 	});
 });

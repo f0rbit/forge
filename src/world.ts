@@ -11,6 +11,24 @@ export type ComponentTuple<C extends readonly Component<any>[]> = {
 	[K in keyof C]: C[K] extends Component<infer T> ? T : never;
 };
 
+/**
+ * Filters marker components (`Component<true>`) out of a tuple type.
+ * `query` uses this to elide marker slots from the yielded tuple — markers
+ * filter the result set but never appear as `true` slots in the output.
+ *
+ * Example: `DataComponents<[Component<Pos>, Component<true>, Component<Dir>]>`
+ *   evaluates to `[Component<Pos>, Component<Dir>]`.
+ */
+export type DataComponents<C extends readonly Component<any>[]> = C extends readonly []
+	? readonly []
+	: C extends readonly [infer Head, ...infer Tail extends readonly Component<any>[]]
+		? Head extends Component<true>
+			? DataComponents<Tail>
+			: Head extends Component<any>
+				? readonly [Head, ...DataComponents<Tail>]
+				: DataComponents<Tail>
+		: C;
+
 type SpawnTuple = readonly [Component<any>, any];
 type SpawnArgs = readonly SpawnTuple[];
 
@@ -27,6 +45,10 @@ export type QueryOpts = {
  * In-place updates via `set()` on an entity already in the store are safe.
  * Snapshot via `.collect()` before structural mutation.
  *
+ * Marker components (`Component<true>`) filter the result set but are
+ * elided from the yielded tuple — `query([pos_c, player_c])` yields
+ * `[Id, Pos]`, not `[Id, Pos, true]`.
+ *
  * Example:
  *   for (const [e, p, v] of world.query([pos_c, vel_c]).collect()) {
  *     world.despawn(e);  // safe: collect() captured the snapshot
@@ -37,9 +59,9 @@ export type QueryOpts = {
  * (NODE_ENV=production or globalThis.__DEV__ = false) skip the check.
  */
 export type Query<C extends readonly Component<any>[]> = {
-	each: (fn: (id: Id, ...data: ComponentTuple<C>) => void) => void;
-	collect: () => Array<readonly [Id, ...ComponentTuple<C>]>;
-	[Symbol.iterator]: () => Iterator<readonly [Id, ...ComponentTuple<C>]>;
+	each: (fn: (id: Id, ...data: ComponentTuple<DataComponents<C>>) => void) => void;
+	collect: () => Array<readonly [Id, ...ComponentTuple<DataComponents<C>>]>;
+	[Symbol.iterator]: () => Iterator<readonly [Id, ...ComponentTuple<DataComponents<C>>]>;
 };
 
 export const internal = Symbol.for("forge.world.internal");
@@ -68,11 +90,6 @@ export type World = {
 	set: <T>(id: Id, c: Component<T>, data: T) => Result<void, EngineError>;
 	remove: (id: Id, c: Component<any>) => Result<void, EngineError>;
 	query: <C extends readonly Component<any>[]>(cs: C, opts?: QueryOpts) => Query<C>;
-	query_data: <D extends readonly Component<any>[], M extends readonly Component<any>[]>(
-		data: D,
-		markers: M,
-		opts?: QueryOpts,
-	) => Query<D>;
 	count: () => number;
 	/**
 	 * Despawns every entity and clears all component stores.
@@ -218,7 +235,7 @@ export const world = (): World => {
 			return keys;
 		};
 
-		const iterate = function* (check_mutation: boolean): Generator<readonly [Id, ...ComponentTuple<C>]> {
+		const iterate = function* (check_mutation: boolean): Generator<readonly [Id, ...ComponentTuple<DataComponents<C>>]> {
 			if (cs.length === 0) return;
 			const required_stores = cs.map(c => stores.get(c.key));
 			if (required_stores.some(s => !s)) return;
@@ -250,19 +267,23 @@ export const world = (): World => {
 
 			outer: for (const id of primary.keys()) {
 				if (check_mutation) check();
-				const data: unknown[] = new Array(cs.length);
-				data[primary_idx] = primary.get(id);
+				const data: unknown[] = [];
+				const primary_value = primary.get(id);
 				for (let i = 0; i < cs.length; i++) {
-					if (i === primary_idx) continue;
+					if (i === primary_idx) {
+						if (primary_value !== true) data.push(primary_value);
+						continue;
+					}
 					const s = required_stores[i] as Map<Id, unknown>;
 					if (!s.has(id)) continue outer;
-					data[i] = s.get(id);
+					const value = s.get(id);
+					if (value !== true) data.push(value);
 				}
 				for (const w of without) {
 					const s = stores.get(w.key);
 					if (s && s.has(id)) continue outer;
 				}
-				yield [id, ...(data as ComponentTuple<C>)] as const;
+				yield [id, ...(data as ComponentTuple<DataComponents<C>>)] as const;
 			}
 		};
 
@@ -270,110 +291,7 @@ export const world = (): World => {
 			each: fn => {
 				for (const tuple of iterate(DEV)) {
 					const [id, ...data] = tuple;
-					fn(id, ...(data as ComponentTuple<C>));
-				}
-			},
-			collect: () => Array.from(iterate(false)),
-			[Symbol.iterator]: () => iterate(DEV),
-		};
-	};
-
-	const query_data = <D extends readonly Component<any>[], M extends readonly Component<any>[]>(
-		data: D,
-		markers: M,
-		opts?: QueryOpts,
-	): Query<D> => {
-		const without = opts?.without ?? [];
-
-		const tracked_keys = (): symbol[] => {
-			const keys: symbol[] = data.map(c => c.key);
-			for (const m of markers) keys.push(m.key);
-			for (const w of without) keys.push(w.key);
-			return keys;
-		};
-
-		const iterate = function* (check_mutation: boolean): Generator<readonly [Id, ...ComponentTuple<D>]> {
-			const data_stores = data.map(c => stores.get(c.key));
-			if (data.length > 0 && data_stores.some(s => !s)) return;
-			const marker_stores = markers.map(m => stores.get(m.key));
-			if (markers.length > 0 && marker_stores.some(s => !s)) return;
-
-			let primary: Iterable<Id>;
-			let primary_idx = -1;
-			if (data.length > 0) {
-				let smallest = data_stores[0] as Map<Id, unknown>;
-				primary_idx = 0;
-				for (let i = 1; i < data_stores.length; i++) {
-					const s = data_stores[i] as Map<Id, unknown>;
-					if (s.size < smallest.size) {
-						smallest = s;
-						primary_idx = i;
-					}
-				}
-				for (let i = 0; i < marker_stores.length; i++) {
-					const s = marker_stores[i] as Map<Id, unknown>;
-					if (s.size < smallest.size) {
-						smallest = s;
-						primary_idx = -1;
-					}
-				}
-				primary = smallest.keys();
-			} else if (markers.length > 0) {
-				let smallest = marker_stores[0] as Map<Id, unknown>;
-				for (let i = 1; i < marker_stores.length; i++) {
-					const s = marker_stores[i] as Map<Id, unknown>;
-					if (s.size < smallest.size) smallest = s;
-				}
-				primary = smallest.keys();
-			} else {
-				primary = entities.values();
-			}
-
-			const keys = check_mutation ? tracked_keys() : [];
-			const captured = check_mutation ? keys.map(k => version_of(k)) : [];
-			let warned = false;
-			const check = (): void => {
-				if (warned) return;
-				for (let i = 0; i < keys.length; i++) {
-					if (version_of(keys[i] as symbol) !== captured[i]) {
-						warned = true;
-						const names = data.map(c => c.name).join(", ");
-						const marker_names = markers.map(m => m.name).join(", ");
-						console.warn(`[forge] world.query_data([${names}], [${marker_names}]) iterator detected mid-iteration mutation. Snapshot via .collect() before mutating to avoid undefined behaviour.`);
-						return;
-					}
-				}
-			};
-
-			outer: for (const id of primary) {
-				if (check_mutation) check();
-				const out: unknown[] = new Array(data.length);
-				for (let i = 0; i < data.length; i++) {
-					if (i === primary_idx) {
-						out[i] = (data_stores[i] as Map<Id, unknown>).get(id);
-						continue;
-					}
-					const s = data_stores[i] as Map<Id, unknown>;
-					if (!s.has(id)) continue outer;
-					out[i] = s.get(id);
-				}
-				for (let i = 0; i < marker_stores.length; i++) {
-					const s = marker_stores[i] as Map<Id, unknown>;
-					if (!s.has(id)) continue outer;
-				}
-				for (const w of without) {
-					const s = stores.get(w.key);
-					if (s && s.has(id)) continue outer;
-				}
-				yield [id, ...(out as ComponentTuple<D>)] as const;
-			}
-		};
-
-		return {
-			each: fn => {
-				for (const tuple of iterate(DEV)) {
-					const [id, ...d] = tuple;
-					fn(id, ...(d as ComponentTuple<D>));
+					fn(id, ...(data as ComponentTuple<DataComponents<C>>));
 				}
 			},
 			collect: () => Array.from(iterate(false)),
@@ -405,7 +323,6 @@ export const world = (): World => {
 		set: set_data,
 		remove,
 		query,
-		query_data,
 		count,
 		clear,
 		[internal]: {

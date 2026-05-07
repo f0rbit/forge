@@ -9,7 +9,7 @@ export type { World, Component, Id, Query, QueryOpts, ComponentTuple, WorldInter
 export const pos_c: Component<{ x: number; y: number }> = component<{ x: number; y: number }>("pos");
 
 export { schedule } from "./schedule.ts";
-export type { Schedule, Stage, System, Ctx, PeriodicOpts } from "./schedule.ts";
+export type { Schedule, Stage, System, Ctx, AddOpts } from "./schedule.ts";
 
 export { time } from "./time.ts";
 export type { Time } from "./time.ts";
@@ -36,7 +36,7 @@ export type {
 	Action,
 } from "./input/index.ts";
 
-export { replay } from "./replay.ts";
+export { replay, replay_schema } from "./replay.ts";
 export type { ReplayDoc, ActionEvent, ReplayError, Recorder, Player } from "./replay.ts";
 
 export { snapshotter, snapshot_schema } from "./snapshot.ts";

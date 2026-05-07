@@ -81,10 +81,10 @@ describe("replay record/save/load round-trip", () => {
 	});
 });
 
-describe("replay.record_engine", () => {
+describe("replay.record(input, ctx)", () => {
 	test("pulls seed/fixed_dt/get_tick from ctx", () => {
 		const h = harness({ seed: 99, fixed_dt: 1 / 30, bindings: presets.platformer });
-		const rec = replay.record_engine(h.input, h.ctx);
+		const rec = replay.record(h.input, h.ctx);
 
 		h.input.pump([{ kind: "key.down", code: "Space", pad: null, t: 0 }]);
 		h.time.advance(1 / 30);
@@ -97,12 +97,12 @@ describe("replay.record_engine", () => {
 
 	test("opts.seed override wins over ctx.rng.seed", () => {
 		const h = harness({ seed: 1, bindings: presets.platformer });
-		const rec = replay.record_engine(h.input, h.ctx, { seed: 123 });
+		const rec = replay.record(h.input, h.ctx, { seed: 123 });
 		const doc = rec.stop();
 		expect(doc.seed).toBe(123);
 	});
 
-	test("output is identical to manual replay.record(input, opts)", () => {
+	test("ctx form is equivalent to the raw opts form", () => {
 		const h_manual = harness({ seed: 5, bindings: presets.platformer });
 		const h_engine = harness({ seed: 5, bindings: presets.platformer });
 
@@ -111,7 +111,7 @@ describe("replay.record_engine", () => {
 			fixed_dt: 1 / 60,
 			get_tick: () => h_manual.time.tick,
 		});
-		const engine = replay.record_engine(h_engine.input, h_engine.ctx);
+		const engine = replay.record(h_engine.input, h_engine.ctx);
 
 		const drive = (h: typeof h_manual): void => {
 			h.input.pump([{ kind: "key.down", code: "Space", pad: null, t: 0 }]);

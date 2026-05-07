@@ -20,7 +20,7 @@ export const grid_index = <P extends { x: number; y: number }>(
 	const refresh = (): void => {
 		buckets.clear();
 		const rows = filter
-			? w.query_data([pos_c], [filter] as const).collect()
+			? w.query([pos_c, filter] as const).collect()
 			: w.query([pos_c] as const).collect();
 		for (const row of rows) {
 			const id = row[0] as Id;

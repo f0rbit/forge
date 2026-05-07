@@ -21,7 +21,7 @@ const action_event_schema = z.discriminatedUnion("kind", [
 	z.object({ kind: z.literal("axis"), action: z.string(), value: z.number(), tick: z.number().int().nonnegative() }),
 ]);
 
-const replay_schema = z.object({
+export const replay_schema = z.object({
 	version: z.literal(1),
 	seed: z.number().int(),
 	fixed_dt: z.number().positive(),
@@ -46,7 +46,22 @@ const epsilon = 1e-6;
 
 const same_axis = (a: number, b: number): boolean => Math.abs(a - b) < epsilon;
 
-const record = (i: Input, opts: { seed: number; fixed_dt: number; get_tick: () => number }): Recorder => {
+type RecordRawOpts = { seed: number; fixed_dt: number; get_tick: () => number };
+type RecordCtxOpts = { seed?: number };
+
+const is_ctx = (x: Ctx | RecordRawOpts): x is Ctx =>
+	typeof (x as Ctx).time === "object" && typeof (x as Ctx).rng === "object";
+
+function record(input: Input, ctx: Ctx, opts?: RecordCtxOpts): Recorder;
+function record(input: Input, opts: RecordRawOpts): Recorder;
+function record(i: Input, second: Ctx | RecordRawOpts, third?: RecordCtxOpts): Recorder {
+	const opts: RecordRawOpts = is_ctx(second)
+		? {
+			seed: third?.seed ?? second.rng.seed,
+			fixed_dt: second.time.fixed_dt,
+			get_tick: () => second.time.tick,
+		}
+		: second;
 	const frames = new Map<number, ActionEvent[]>();
 	const last_pressed = new Map<string, boolean>();
 	const last_axis = new Map<string, number>();
@@ -106,7 +121,7 @@ const record = (i: Input, opts: { seed: number; fixed_dt: number; get_tick: () =
 	};
 
 	return { stop, dump };
-};
+}
 
 const play = (doc: ReplayDoc, i: Input, get_tick: () => number): Player => {
 	const by_tick = new Map<number, readonly ActionEvent[]>();
@@ -147,18 +162,9 @@ const load = (json: string): Result<ReplayDoc, ReplayError> => {
 	return ok(r.data as ReplayDoc);
 };
 
-const record_engine = (i: Input, ctx: Ctx, opts?: { seed?: number }): Recorder =>
-	record(i, {
-		seed: opts?.seed ?? ctx.rng.seed,
-		fixed_dt: ctx.time.fixed_dt,
-		get_tick: () => ctx.time.tick,
-	});
-
 export const replay = {
 	record,
-	record_engine,
 	play,
 	save,
 	load,
-	schema: replay_schema,
 };
