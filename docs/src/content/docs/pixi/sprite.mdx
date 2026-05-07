@@ -14,7 +14,6 @@ type SpriteData = {
   visible?: boolean;
   z?: number;                         // zIndex within world container
   scale?: { x: number; y: number };   // non-uniform scale, defaults (1, 1)
-  node?: Sprite | null;               // populated lazily by sprite_sync_system
 };
 
 w.spawn(
@@ -23,16 +22,44 @@ w.spawn(
 );
 ```
 
+`SpriteData` is **config only**. The PIXI runtime `Sprite` node lives in a private `WeakMap<World, Map<Id, Sprite>>` owned by `sprite_sync_system` — it isn't exposed on the public type. Consumers never touch it.
+
 ## sprite_sync_system
 
 The `sprite_sync_system` (added by `boot` to the `post` stage) watches `(pos_c, sprite_c)` pairs each tick:
 
-- First time it sees an entity: creates a PIXI `Sprite`, adds to the world container, writes back `sd.node`.
+- First time it sees an entity: creates a PIXI `Sprite`, adds to the world container, stores it in the system's private node map.
 - Resolves the texture: `assets.texture(alias)` first, then atlas `frame` lookup, then *first frame of the atlas* as a last resort. If still nothing, sprite stays without a texture (often visible as a tiny white square or invisible).
 - Updates: position from `pos_c`, anchor / tint / visibility / zIndex from `sprite_c`.
 - Despawn cleanup: any sprite whose entity vanished from the query gets `removeFromParent()` + `destroy()`.
 
 The lazy-mount means you can `w.set(id, sprite_c, {...})` without ever touching PIXI — the system handles the pixi-side construction.
+
+## The `sprite` patch helpers
+
+For the common "update one sprite field" pattern, `sprite.set` does the read/merge/write round-trip:
+
+```ts
+import { sprite } from "@f0rbit/forge/pixi";
+
+sprite.set(w, id, { visible: false });           // hide
+sprite.set(w, id, { tint: 0xff0000 });            // recolour
+sprite.set(w, id, { scale: { x: -1, y: 1 } });    // mirror horizontally
+
+// shortcuts
+sprite.show(w, id);                               // visible: true
+sprite.hide(w, id);                               // visible: false
+```
+
+Each helper returns `Result<void, EngineError>` — `component_missing` if the entity has no `sprite_c`, `entity_not_found` if it's been despawned.
+
+```ts
+type sprite = {
+  set:  (w: World, id: Id, patch: Partial<SpriteData>) => Result<void, EngineError>;
+  show: (w: World, id: Id) => Result<void, EngineError>;
+  hide: (w: World, id: Id) => Result<void, EngineError>;
+};
+```
 
 ## Scale
 
@@ -40,18 +67,10 @@ The lazy-mount means you can `w.set(id, sprite_c, {...})` without ever touching 
 
 ```ts
 // 2× upscale for HUD overlays vs world sprites
-w.set(hud_icon, sprite_c, {
-  texture: "ui",
-  frame: "heart",
-  scale: { x: 2, y: 2 },
-});
+sprite.set(w, hud_icon, { scale: { x: 2, y: 2 } });
 
 // horizontal flip
-w.set(player, sprite_c, {
-  texture: "hero",
-  anchor: { x: 0.5, y: 0.5 },
-  scale: { x: -1, y: 1 },
-});
+sprite.set(w, player, { scale: { x: -1, y: 1 } });
 ```
 
 This is the only valid way to do non-uniform scale on a PIXI sprite. Common uses:
@@ -60,4 +79,20 @@ This is the only valid way to do non-uniform scale on a PIXI sprite. Common uses
 - Pixel-art atlas frames at non-1× factors (e.g. 16×16 atlas → 8 px tiles via `scale: { x: 0.5, y: 0.5 }`).
 - Mirroring/flipping for left/right-facing sprites without a separate atlas frame.
 
-The system applies scale every tick the entity is in the `(pos_c, sprite_c)` query, so reactive changes (`w.set(id, sprite_c, { ...sd, scale: { x: -1, y: 1 } })`) take effect on the next post-tick.
+The system applies scale every tick the entity is in the `(pos_c, sprite_c)` query, so reactive changes (`sprite.set(w, id, { scale: { x: -1, y: 1 } })`) take effect on the next post-tick.
+
+## Migration from v0.2.0
+
+`SpriteData.node` is removed from the public type. The spread-and-set pattern collapses into `sprite.set`:
+
+```ts
+// v0.2.0
+const sd = w.get(id, sprite_c);
+if (!sd.ok) return;
+w.set(id, sprite_c, { ...sd.value, visible: false });
+
+// v0.3.0
+sprite.set(w, id, { visible: false });
+// or
+sprite.hide(w, id);
+```

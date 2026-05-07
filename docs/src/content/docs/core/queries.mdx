@@ -22,6 +22,23 @@ for (const [id, p, v] of q.collect()) {
 }
 ```
 
+## Marker auto-elision
+
+`Component<true>` markers (e.g. `player_c: Component<true>`) are filter-only — they restrict which entities match but **never appear in the yielded tuple**. The destructure shape is `[Id, ...data]`:
+
+```ts
+// player_c is a marker — it filters but is elided from the tuple
+for (const [id, p, d] of w.query([pos_c, player_c, dir_c] as const).collect()) {
+  // id: Id, p: Pos, d: Dir   — no `true` slot to skip
+  p.x += d.dx;
+}
+
+// pure-marker query — only `Id` in the tuple
+for (const [id] of w.query([player_c] as const)) { /* … */ }
+```
+
+The `as const` is required for TypeScript to keep the component tuple ordered. Marker-only / data-only / mixed queries all share the same iterator semantics.
+
 ## Mutation safety
 
 `set`-ting the same entity in a component already in the iterator is fine. Adding/removing the *keyset* — `despawn`, `remove`, or `set` on a *new* entity for one of the iterated components — invalidates the iterator. Always `.collect()` before structural mutation.
@@ -65,36 +82,16 @@ The `without` option excludes entities that have any of the listed components:
 const dead = w.query([pos_c] as const, { without: [alive_c] }).collect();
 ```
 
-## Marker filters — `query_data`
+## Migration from v0.2.0 `query_data`
 
-`query()` returns the full data tuple including marker stores, which means a marker like `player_c: Component<true>` shows up as a `true` slot you have to skip:
-
-```ts
-for (const [id, p, , d] of w.query([pos_c, player_c, dir_c]).collect()) {
-  //                ↑ awkward "true" slot
-  p.x += d.dx;
-}
-```
-
-`query_data(data, markers, opts?)` separates the two: `data` components return their values, `markers` filter without contributing to the tuple shape.
+`query_data(data, markers)` is removed. `query` now does the same job — markers in the component list are auto-elided from the tuple:
 
 ```ts
-for (const [id, p, d] of w.query_data([pos_c, dir_c], [player_c]).collect()) {
-  // id: Id, p: Pos, d: Dir   — no `true` slot
-  p.x += d.dx;
-}
+// v0.2.0
+for (const [id, p, d] of w.query_data([pos_c, dir_c], [player_c]).collect()) { /* … */ }
+
+// v0.3.0
+for (const [id, p, d] of w.query([pos_c, dir_c, player_c] as const).collect()) { /* … */ }
 ```
 
-Signature:
-
-```ts
-world.query_data<D extends readonly Component<any>[], M extends readonly Component<any>[]>(
-  data: D,
-  markers: M,
-  opts?: QueryOpts,
-): Query<D>;
-```
-
-The `data` array can be empty if you only want to filter by markers. The `markers` array can be empty if you only want data (effectively a `query()`). The `without` option still applies to the resulting iteration.
-
-`query_data` shares the same iterator semantics as `query`: in-place updates are safe, structural mutation requires `.collect()` first, `__DEV__` builds detect mid-iteration mutation.
+One array, one `as const`, identical destructure shape.

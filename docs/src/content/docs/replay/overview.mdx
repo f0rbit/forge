@@ -25,13 +25,14 @@ Three reasons:
 
 ## Recording
 
-Two factories. Most game code uses `record_engine`:
+`replay.record(input, ctx, opts?)` reads `seed`, `fixed_dt`, and `get_tick` from the `Ctx`. This is the form every game uses:
 
 ```ts
 import { harness, replay } from "@f0rbit/forge";
+import { presets } from "@f0rbit/forge/presets";
 
-const h = harness({ seed: 1, fixed_dt: 1/60, bindings: presets.movement2d });
-const recorder = replay.record_engine(h.input, h.ctx, { seed: 1 });
+const h = harness({ seed: 1, fixed_dt: 1/60, bindings: presets.movement_2d });
+const recorder = replay.record(h.input, h.ctx);
 
 // drive the sim however you like — input.inject_actions, scripted source, etc.
 h.input.inject_actions([{ kind: "axis", action: "move.x", value: 1 }]);
@@ -43,7 +44,7 @@ for (let i = 0; i < 600; i++) {
 const doc = recorder.stop();   // detaches listeners, returns ReplayDoc
 ```
 
-`record_engine(input, ctx, opts?)` infers `seed` and `fixed_dt` from `ctx`. The lower-level `replay.record(input, { seed, fixed_dt, get_tick })` is for cases where you don't have a `Ctx`.
+A low-level overload `replay.record(input, { seed, fixed_dt, get_tick })` is available for unit tests that don't have a `Ctx`. Both forms return the same `Recorder`.
 
 `recorder.dump()` snapshots without stopping (so you can keep recording).
 

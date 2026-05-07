@@ -4,13 +4,13 @@ description: "Play animations from atlases with deterministic frame timing and e
 ---
 
 ```ts
-import { anim_c, anim, atlas_registry, type AnimData } from "@f0rbit/forge";
+import { anim_c, anim, atlas_registry_r, type AnimData } from "@f0rbit/forge";
 
 type AnimData = {
   atlas: string;       // atlas alias
   sequence: string;    // animation name within atlas
   frame: number;       // current frame index
-  t: number;           // accumulated tick fraction within frame
+  t: number;           // @internal — accumulator, set/read only by anim.advance
   speed: number;       // ticks-per-update multiplier (1 = normal)
   loop: boolean;
   done: boolean;
@@ -36,22 +36,28 @@ a.playing(world, entity);  // → boolean
 
 Atlas JSON `duration` (in ms) is converted at load time to integer ticks via `Math.round((ms / 1000) / fixed_dt)`. So a 100ms frame at `fixed_dt: 1/60` becomes 6 ticks. Determinism depends on this — if you ever change `fixed_dt`, recompile your atlas durations.
 
+## Internal fields
+
+`anim_c.t` is a per-tick accumulator owned by `anim.advance`. It's part of `AnimData` because snapshot/restore needs to preserve mid-frame state for replay determinism — but **never read or write `t` from game code**. The JSDoc tag marks it `@internal`. Treat the public surface as `{ atlas, sequence, frame, speed, loop, done }`.
+
 ## Atlas registry
 
-The `atlas_registry` resource holds `Record<string, Record<string, readonly { frame: string; ticks: number }[]>>`. `boot` populates it with every atlas you load via `assets`. The `anim.advance` system reads from it to look up sequences.
+The `atlas_registry_r` resource holds `Record<string, Record<string, readonly { frame: string; ticks: number }[]>>`. `boot` populates it with every atlas you load via `assets`. The `anim.advance` system reads from it to look up sequences.
+
+(Renamed from `atlas_registry` in v0.3.0 for `_r` suffix consistency.)
 
 ## Events
 
-When a non-loop animation finishes, or a loop animation wraps around, `anim.advance` pushes an event into the `anim_events` resource buffer (if registered):
+When a non-loop animation finishes, or a loop animation wraps around, `anim.advance` pushes an event into the `anim_events_r` resource buffer (if registered):
 
 ```ts
-import { anim_events, resources } from "@f0rbit/forge";
+import { anim_events_r, resources } from "@f0rbit/forge";
 
 const res = resources();
-res.set(anim_events, { events: [] });
+res.set(anim_events_r, { events: [] });
 
 // ...later, after schedule.tick:
-const buf = res.get(anim_events);
+const buf = res.get(anim_events_r);
 if (buf.ok) {
   for (const ev of buf.value.events) {
     if (ev.kind === "finished") /* ... */;
@@ -60,7 +66,9 @@ if (buf.ok) {
 }
 ```
 
-The buffer is **drained at the start of each `anim.advance` call** — read it within the same tick or it's gone. If you don't register `anim_events`, no events are pushed.
+The buffer is **drained at the start of each `anim.advance` call** — read it within the same tick or it's gone. If you don't register `anim_events_r`, no events are pushed.
+
+(Renamed from `anim_events` in v0.3.0.)
 
 ## PIXI integration
 

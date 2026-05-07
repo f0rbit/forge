@@ -1,14 +1,16 @@
 ---
 title: Move Tile
-description: Step one cell with axis-sliding collision predicate.
+description: Step one cell with axis-sliding collision predicate. A Grid method.
 ---
 
-`move_tile()` steps an entity one cell in a direction with **axis-sliding** collision: it tries `dx` first, then `dy` from the resulting cell. This prevents corner-cutting through diagonal walls — the canonical correctness detail every reimplementation has to rediscover.
+`g.move_tile()` steps an entity one cell in a direction with **axis-sliding** collision: it tries `dx` first, then `dy` from the resulting cell. This prevents corner-cutting through diagonal walls — the canonical correctness detail every reimplementation has to rediscover.
 
 ```ts
-import { move_tile } from "@f0rbit/forge/grid";
+import { grid } from "@f0rbit/forge/grid";
 
-const r = move_tile(world, player, pos_c, g, { dx: 1, dy: 0 }, {
+const g = grid({ cols: 20, rows: 11, tile: 16 });
+
+const r = g.move_tile(world, player, { dx: 1, dy: 0 }, {
   blocked_by: (c) => walls.has(g.key(c.x, c.y)),
 });
 if (r.ok && r.value.moved) {
@@ -21,9 +23,10 @@ if (r.ok && r.value.moved) {
 ## Shape
 
 ```ts
-type TileMoveOpts = {
+type TileMoveOpts<P extends { x: number; y: number } = { x: number; y: number }> = {
   blocked_by: (cell: Cell) => boolean;
-  slide?: boolean;                  // default true
+  slide?: boolean;                   // default true
+  pos?: Component<P>;                // defaults to forge's `pos_c`
 };
 
 type TileMoveResult = {
@@ -32,14 +35,22 @@ type TileMoveResult = {
   moved: boolean;
 };
 
-const move_tile: <P extends { x: number; y: number }>(
-  w: World,
-  id: Id,
-  pos_c: Component<P>,
-  grid: Grid,
-  dir: { dx: -1 | 0 | 1; dy: -1 | 0 | 1 },
-  opts: TileMoveOpts,
-) => Result<TileMoveResult, EngineError>;
+type Grid = {
+  // ...
+  move_tile: <P extends { x: number; y: number } = { x: number; y: number }>(
+    w: World,
+    id: Id,
+    dir: { dx: -1 | 0 | 1; dy: -1 | 0 | 1 },
+    opts: TileMoveOpts<P>,
+  ) => Result<TileMoveResult, EngineError>;
+};
+```
+
+`opts.pos` defaults to forge's canonical `pos_c`. Pass it explicitly only if your game uses a custom position component:
+
+```ts
+const my_pos_c = component<{ x: number; y: number }>("my_pos");
+g.move_tile(w, id, dir, { blocked_by, pos: my_pos_c });
 ```
 
 ## Slide semantics
@@ -71,15 +82,29 @@ if (r.ok && r.value.moved) {
 
 ## Errors
 
-`move_tile` propagates the kernel's error union — `entity_not_found` or `component_missing` if `id` doesn't have `pos_c`. Otherwise it's `ok({ from, to, moved })`.
+`g.move_tile` propagates the kernel's error union — `entity_not_found` or `component_missing` if `id` doesn't have the position component. Otherwise it's `ok({ from, to, moved })`.
 
 ## Cadence
 
-Tile movement usually wants a periodic gate so taps register as discrete steps. Combine with [`schedule.add_periodic`](/forge/core/schedule/) and [`ticks_per_step`](/forge/grid/ticks-per-step/):
+Tile movement usually wants a periodic gate so taps register as discrete steps. Combine with [`schedule.add`](/forge/core/schedule/) (with `every`) and [`ticks_per_step`](/forge/grid/ticks-per-step/):
 
 ```ts
 import { ticks_per_step } from "@f0rbit/forge/grid";
 
 const every = ticks_per_step(8, ctx.time.fixed_dt);  // 8 cells/sec
-schedule.add_periodic("update", movement_system, { every }, "movement");
+schedule.add("update", movement_system, { every, name: "movement" });
+```
+
+## Migration from v0.2.0
+
+The standalone `move_tile` export is removed. Drop the `pos_c` and `grid` positional args:
+
+```ts
+// v0.2.0
+import { move_tile } from "@f0rbit/forge/grid";
+import { pos_c } from "@f0rbit/forge";
+const r = move_tile(w, id, pos_c, g, { dx, dy }, { blocked_by });
+
+// v0.3.0
+const r = g.move_tile(w, id, { dx, dy }, { blocked_by });
 ```

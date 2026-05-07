@@ -61,7 +61,7 @@ schedule.add("pre", grid_index_sync_system(walls),    "wall.idx");
 
 ```ts
 const ai_system: System = (w, ctx) => {
-  for (const [id, p] of w.query_data([pos_c], [enemy_c]).collect()) {
+  for (const [id, p] of w.query([pos_c, enemy_c] as const).collect()) {
     const cell = g.world_to_cell(p.x, p.y);
     const targets = monsters.around(cell, 3);   // Chebyshev radius 3
     if (targets.length > 0) {
@@ -73,7 +73,7 @@ const ai_system: System = (w, ctx) => {
 
 ## Notes
 
-- `refresh()` is called eagerly on construction. After that, refresh on a cadence — typically every tick in `pre`, or only when entities move (use `add_periodic` with `every: N` if your game updates positions infrequently).
+- `refresh()` is called eagerly on construction. After that, refresh on a cadence — typically every tick in `pre`, or only when entities move (use `schedule.add(..., { every: N })` if your game updates positions infrequently).
 - The index is **rebuilt from scratch** on each refresh; it does not maintain incremental deltas. For thousands of entities this is still cheap, but profile before scaling.
 - Out-of-bounds cells silently return `null` / `[]` — no error path.
 - Cell-keying ties this index to a `Grid`. Continuous-movement games should use a different structure (quadtree, AABB grid).

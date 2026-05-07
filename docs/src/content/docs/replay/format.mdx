@@ -23,7 +23,14 @@ type ActionEvent =
   | { kind: "axis";    action: string; value: number; tick: number };
 ```
 
-Validated by `replay.schema` (a Zod schema). Frames are **sparse** — only ticks with at least one transition are stored, sorted by `tick`.
+Validated by the top-level `replay_schema` export (a Zod schema). Frames are **sparse** — only ticks with at least one transition are stored, sorted by `tick`.
+
+```ts
+import { replay_schema, type ReplayDoc } from "@f0rbit/forge";
+
+const r = replay_schema.safeParse(json);
+if (r.success) doSomething(r.data as ReplayDoc);
+```
 
 ## Example file
 

@@ -16,7 +16,7 @@ const r = await boot({
     mode: "extend",
     min: { width: 320, height: 180 },
   },
-  bindings: presets.movement2d,
+  bindings: presets.movement_2d,
 });
 if (!r.ok) throw new Error(`boot failed: ${r.error.kind}`);
 const app: App = r.value;

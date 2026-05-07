@@ -9,9 +9,9 @@ import { presets } from "@f0rbit/forge/presets";
 
 | Preset | Actions | Notes |
 |---|---|---|
-| `movement2d` | `move.x`, `move.y` (axes) | Arrows + WASD + left stick + d-pad pairs. |
-| `movement_4way_digital` | `move.left`, `move.right`, `move.up`, `move.down` (digital) | Tile-step games — digital edges only, no axes, no diagonals. |
-| `movement8way` | `move.left`, `move.right`, `move.up`, `move.down` (digital), plus the `movement2d` axes | Useful when you want both stick smoothing and crisp digital edges. |
+| `movement_2d` | `move.x`, `move.y` (axes) | Arrows + WASD + left stick + d-pad pairs. |
+| `movement_4way` | `move.left`, `move.right`, `move.up`, `move.down` (digital) | Tile-step games — digital edges only, no axes, no diagonals. |
+| `movement_8way` | `move.left`, `move.right`, `move.up`, `move.down` (digital), plus the `movement_2d` axes | Useful when you want both stick smoothing and crisp digital edges. |
 | `platformer` | `jump` (digital, Space + pad south), `move.x` (axis) | Side-scrolling. |
 | `twinstick` | `move.x`, `move.y` (left stick / WASD), `aim.x`, `aim.y` (right stick / arrows) | Top-down shooter. |
 | `menu` | `up`, `down`, `left`, `right`, `confirm`, `cancel` (digital) | Pure d-pad / arrow / Enter / Esc menu controls. |
@@ -24,3 +24,17 @@ import { presets } from "@f0rbit/forge/presets";
 
 const bindings = merge_bindings(presets.platformer, presets.menu);
 ```
+
+`merge_bindings` and `empty_bindings` are exported from both `@f0rbit/forge` (the main entry) and `@f0rbit/forge/input` (the canonical location). Either import path works — pick the one that reads better at the call site.
+
+## v0.3.0 renames
+
+Three presets were renamed for snake_case consistency:
+
+| v0.2.0 | v0.3.0 |
+|---|---|
+| `movement2d` | `movement_2d` |
+| `movement8way` | `movement_8way` |
+| `movement_4way_digital` | `movement_4way` |
+
+`platformer`, `twinstick`, `menu` are unchanged.

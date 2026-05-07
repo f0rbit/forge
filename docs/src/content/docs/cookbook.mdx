@@ -179,61 +179,58 @@ const r = a.play(w, player, "walk");
 if (!r.ok) console.warn("anim play failed", r.error);
 ```
 
-## Periodic systems with `add_periodic`
+## Periodic systems with `schedule.add({ every })`
 
 For systems that run on a cadence (regen, AI ticks, projectile fire-rate, tile movement), declare the gate at registration instead of opening the body with `if (ctx.time.tick % step !== 0) return;`:
 
 ```ts
-sch.add_periodic("update", regen_system,    { every: 60 },             "regen");
-sch.add_periodic("update", movement_system, { every: 10 },             "movement");
-sch.add_periodic("update", spawn_wave,      { every: 600, phase: 30 }, "spawn.wave");
+sch.add("update", regen_system,    { every: 60,             name: "regen" });
+sch.add("update", movement_system, { every: 10,             name: "movement" });
+sch.add("update", spawn_wave,      { every: 600, phase: 30, name: "spawn.wave" });
 ```
 
 `{ every, phase? }` — the wrapped system fires when `ctx.time.tick % every === phase % every`. Use `phase` to interleave two periodic systems with the same period instead of bunching them on tick 0.
 
 For tile movement, pair with [`ticks_per_step`](/forge/grid/ticks-per-step/) so the cadence is expressed in cells/sec rather than ticks-per-step.
 
-## Marker-component queries with `query_data`
+## Marker-component queries
 
-`query()` returns the full data tuple including marker stores, so a `Component<true>` marker shows up as an awkward `true` slot:
+`query()` auto-elides `Component<true>` marker slots from the yielded tuple — markers filter without contributing to the destructure shape:
 
 ```ts
-for (const [id, p, , d] of w.query([pos_c, player_c, dir_c]).collect()) {
-  //                ↑ "true" slot you have to skip
+// player_c is a marker; it filters but doesn't appear in the tuple
+for (const [id, p, d] of w.query([pos_c, player_c, dir_c] as const).collect()) {
+  // id: Id, p: Pos, d: Dir   — no `true` slot to skip
   p.x += d.dx;
 }
 ```
 
-Split data from filters with `query_data`:
-
-```ts
-for (const [id, p, d] of w.query_data([pos_c, dir_c], [player_c]).collect()) {
-  // id: Id, p: Pos, d: Dir   — no marker slots
-  p.x += d.dx;
-}
-```
-
-`query_data(data, markers, opts?)` keeps the marker components as filters but drops them from the tuple shape.
+One array, one `as const`, identical destructure shape regardless of marker placement. (v0.2.0's `query_data` is removed in favour of this auto-elision.)
 
 ## Bulk-spawn levels with `spawn_many`
 
-For level gen / restart / wave spawns, `spawn_many` runs the spawn loop in one call:
+`spawn_many` accepts either a `(count, factory)` pair or an array of spec arrays. Use the array form when you already have an array of inputs (one entity per element):
 
 ```ts
 const floors = /* Set<number> of floor cell-keys */;
-const cells  = Array.from(floors);
 
-const ids = w.spawn_many(cells.length, (i) => {
-  const cell = g.unkey(cells[i]!);
-  const world = g.cell_to_world(cell.x, cell.y);
-  return [
-    [pos_c, { x: world.x, y: world.y }],
-    [floor_c, true],
-  ];
-});
+// array form — one spec per source key (preferred when you have an iterable)
+const ids = w.spawn_many(
+  [...floors].map(k => {
+    const cell = g.unkey(k);
+    const wp = g.cell_to_world(cell.x, cell.y);
+    return [[pos_c, { x: wp.x, y: wp.y }], [floor_c, true]] as const;
+  }),
+);
+
+// count-and-factory form — best for grid-style fills parameterised by index
+const wall_ids = w.spawn_many(50, (i) => [
+  [pos_c, { x: i * 16, y: 0 }],
+  [wall_c, true],
+]);
 ```
 
-Returns ids in input order — use the index to associate each spawned entity with its source data (cell key, wave row, level slot).
+Both forms return ids in spawn order. The runtime branches on `Array.isArray(arg0)`.
 
 ## Hard restart with `clear()` + `despawn_marked`
 
@@ -255,20 +252,20 @@ spawn_level(w);
 
 `world.despawn_marked(...markers)` is the surgical alternative — bulk-despawn every entity that has **all** of the listed markers, returning the count. Use it for level transitions where the player carries over.
 
-## Tile movement with `move_tile`
+## Tile movement with `g.move_tile`
 
-Axis-sliding tile movement with a collision predicate — the canonical "try X, then try Y from the resulting cell" loop:
+Axis-sliding tile movement with a collision predicate — the canonical "try X, then try Y from the resulting cell" loop. `move_tile` lives on the `Grid` record:
 
 ```ts
-import { move_tile, grid, ticks_per_step } from "@f0rbit/forge/grid";
+import { grid, ticks_per_step } from "@f0rbit/forge/grid";
 
 const g = grid({ cols: 20, rows: 11, tile: 16 });
 const every = ticks_per_step(8, ctx.time.fixed_dt);   // 8 cells/sec
 
 const movement_system: System = (w) => {
-  for (const [id, , d] of w.query_data([pos_c, dir_c], [player_c]).collect()) {
+  for (const [id, , d] of w.query([pos_c, dir_c, player_c] as const).collect()) {
     if (d.dx === 0 && d.dy === 0) continue;
-    const r = move_tile(w, id, pos_c, g, d, {
+    const r = g.move_tile(w, id, d, {
       blocked_by: (c) => walls.has(g.key(c.x, c.y)),
     });
     if (r.ok && r.value.moved && r.value.to.x === exit.x && r.value.to.y === exit.y) {
@@ -277,28 +274,28 @@ const movement_system: System = (w) => {
   }
 };
 
-sch.add_periodic("update", movement_system, { every }, "movement");
+sch.add("update", movement_system, { every, name: "movement" });
 ```
 
-See [Move Tile](/forge/grid/move-tile/) for slide semantics and the full result shape.
+`opts.pos` defaults to forge's canonical `pos_c`; pass it for custom position components. See [Move Tile](/forge/grid/move-tile/) for slide semantics and the full result shape.
 
-## Pixel-perfect FOV with `line_of_sight`
+## Pixel-perfect FOV with `g.line_of_sight`
 
-For roguelike sight, fog-of-war, sight cones — symmetric Bresenham line-of-sight.
+For roguelike sight, fog-of-war, sight cones — symmetric Bresenham line-of-sight, also a method on `Grid`:
 
 ```ts
-import { line_of_sight, grid_index, grid_index_sync_system } from "@f0rbit/forge/grid";
+import { grid, grid_index, grid_index_sync_system } from "@f0rbit/forge/grid";
 
+const g = grid({ cols: 20, rows: 11, tile: 16 });
 const wall_idx = grid_index(w, pos_c, g, wall_c);
 sch.add("pre", grid_index_sync_system(wall_idx), "wall.idx");
 
 const fov_system: System = (w) => {
-  const players = w.query_data([pos_c], [player_c]).collect();
+  const players = w.query([pos_c, player_c] as const).collect();
   for (const [, pp] of players) {
-    const visible = line_of_sight({
+    const visible = g.line_of_sight({
       from: g.world_to_cell(pp.x, pp.y),
       radius: 6,
-      grid: g,
       is_blocking: (c) => wall_idx.at(c) !== null,
     });
     apply_visibility(visible);
@@ -330,7 +327,7 @@ Tile-step games need a "ticks between steps" gate. Designing in cells/sec instea
 import { ticks_per_step } from "@f0rbit/forge/grid";
 
 const every = ticks_per_step(8, ctx.time.fixed_dt);  // 8 cells/sec
-sch.add_periodic("update", movement_system, { every }, "movement");
+sch.add("update", movement_system, { every, name: "movement" });
 ```
 
 See the [reference table](/forge/grid/ticks-per-step/) for common configurations.

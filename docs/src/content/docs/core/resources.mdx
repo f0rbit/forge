@@ -36,4 +36,13 @@ res.remove(score_r);
 | Systems read/write it without iterating entities. | Iteration semantics matter. |
 | You'd otherwise spawn a "global" entity to hold it. | Storage is naturally per-entity. |
 
-Built-in resources: `atlas_registry` (compiled atlases for the anim system) and `anim_events` (event buffer for `finished` / `looped` events).
+## Naming convention
+
+Forge-exported resource keys carry the `_r` suffix (mirroring `_c` for components). Consumer code is encouraged but not enforced — the convention is yours to match.
+
+Built-in resources:
+
+- `atlas_registry_r` — compiled atlases for the anim system.
+- `anim_events_r` — event buffer for `finished` / `looped` animation events.
+
+(Both renamed in v0.3.0; previously `atlas_registry` / `anim_events`.)

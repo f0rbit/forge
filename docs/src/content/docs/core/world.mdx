@@ -30,40 +30,50 @@ w.count();                  // → 0
 | Method | Signature | Notes |
 |---|---|---|
 | `spawn` | `(...c: [Component<T>, T][]) => Id` | Returns a fresh integer id. |
-| `spawn_at` | `(id: Id, ...c) => void` | Used by snapshot restore — preserves the id. Bumps `next_id` if greater. |
-| `spawn_many` | `(count, factory) => readonly Id[]` | Bulk-spawn `count` entities; ids returned in input order. See below. |
+| `spawn_many` | `(count, factory) | (specs[]) => readonly Id[]` | Bulk-spawn — count + factory or array of spec arrays. See below. |
 | `despawn` | `(id) => Result<void, EngineError>` | Removes from every store. |
 | `despawn_marked` | `(...markers) => number` | Bulk-despawn every entity with ALL given markers. Returns count. |
 | `has` | `(id, c) => boolean` | Pure check, no allocation. |
 | `get` | `(id, c) => Result<T, EngineError>` | `kind: "component_missing"` if absent. |
 | `set` | `(id, c, data) => Result<void, EngineError>` | Adds the component if not present and bumps the version. Errors `entity_not_found` if despawned. |
 | `remove` | `(id, c) => Result<void, EngineError>` | Errors `component_missing` if not present. |
-| `query` | `(cs, opts?) => Query<C>` | See [Queries](/forge/core/queries/). |
-| `query_data` | `(data, markers, opts?) => Query<D>` | Marker-filter split — see [Queries](/forge/core/queries/). |
+| `query` | `(cs, opts?) => Query<C>` | Marker components are auto-elided from the tuple. See [Queries](/forge/core/queries/). |
 | `count` | `() => number` | Live entity count. |
 | `clear` | `() => void` | Despawns every entity. Resources are NOT cleared. |
 
+`spawn_at` is exposed via `world[internal].spawn_at` — used by snapshot restore to preserve ids across round-trips. Not part of the public surface.
+
 ## Bulk spawn — `spawn_many`
 
-For level setup, restart, or wave spawns, `spawn_many` runs the spawn loop in one call:
+Two forms. Use the **count + factory** form for grid-style fills, the **array** form when you already have an array of specs (one entity per element):
 
 ```ts
-const ids = w.spawn_many(100, (i) => [
+// (count, factory) — best when entities share a common shape parameterised by index
+const grid_ids = w.spawn_many(100, (i) => [
   [pos_c, { x: (i % 20) * 16, y: Math.floor(i / 20) * 16 }],
   [floor_c, true],
 ]);
+
+// (specs) — best when you already have an array of inputs
+const floor_ids = w.spawn_many(
+  [...floor_keys].map(k => {
+    const cell = g.unkey(k);
+    const wp = g.cell_to_world(cell.x, cell.y);
+    return [[pos_c, { x: wp.x, y: wp.y }], [floor_c, true]] as const;
+  }),
+);
 ```
 
 Signature:
 
 ```ts
-world.spawn_many(
-  count: number,
-  factory: (i: number) => readonly [Component<any>, any][],
-): readonly Id[];
+world.spawn_many: {
+  (count: number, factory: (i: number) => readonly [Component<any>, any][]): readonly Id[];
+  (specs: readonly (readonly [Component<any>, any][])[]): readonly Id[];
+};
 ```
 
-`count` must be a non-negative integer; the factory is called `count` times with `i = 0..count-1`. Returns ids in input order.
+Both forms return ids in spawn order. The runtime branches on `Array.isArray(arg0)`. `count` must be a non-negative integer; the factory is called `count` times with `i = 0..count-1`.
 
 ## Bulk despawn — `despawn_marked`
 

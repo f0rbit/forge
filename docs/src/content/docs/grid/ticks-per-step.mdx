@@ -45,7 +45,7 @@ Implementation: `Math.max(1, Math.round(1 / (cells_per_second * fixed_dt)))`. Re
 | 15  |  2 |
 | 30  |  1 |
 
-## Pairing with `add_periodic`
+## Pairing with `schedule.add`
 
 ```ts
 import { ticks_per_step } from "@f0rbit/forge/grid";
@@ -54,20 +54,20 @@ import { schedule } from "@f0rbit/forge";
 const sch = schedule();
 const every = ticks_per_step(8, time.fixed_dt);
 
-sch.add_periodic("update", movement_system, { every }, "movement");
+sch.add("update", movement_system, { every, name: "movement" });
 ```
 
-## Pairing with `move_tile`
+## Pairing with `g.move_tile`
 
-When you call `move_tile` inside a periodic system, the gate handles cadence — the system body just performs one step:
+When you call `g.move_tile` inside a periodic system, the gate handles cadence — the system body just performs one step:
 
 ```ts
 const movement_system: System = (w) => {
-  for (const [id, , d] of w.query_data([pos_c, dir_c], [player_c])) {
+  for (const [id, , d] of w.query([pos_c, dir_c, player_c] as const)) {
     if (d.dx === 0 && d.dy === 0) continue;
-    move_tile(w, id, pos_c, g, d, { blocked_by });
+    g.move_tile(w, id, d, { blocked_by });
   }
 };
 
-sch.add_periodic("update", movement_system, { every: ticks_per_step(8, fixed_dt) }, "movement");
+sch.add("update", movement_system, { every: ticks_per_step(8, fixed_dt), name: "movement" });
 ```

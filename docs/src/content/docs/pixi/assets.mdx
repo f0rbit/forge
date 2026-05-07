@@ -16,23 +16,49 @@ const r = await boot({
 });
 ```
 
-`assets` returns `Result<App, BootError>` — if any asset fails, `boot` disposes the renderer and returns `err({ kind: "asset_failed", alias, cause: AssetError })`.
+`assets` returns `Result<App, BootError>` — if any asset fails, `boot` disposes the renderer and returns `err({ kind: "asset_failed", alias, cause: AssetError })`. Boot loads assets sequentially in the order given.
 
 ## Standalone usage
+
+The async loader is unified by a `kind` discriminator. The return type narrows on the kind — `"image"` yields `Texture`, `"atlas"` yields `Spritesheet`:
 
 ```ts
 const a = app.assets;
 
-const tex_r = await a.image("hero", "/sprites/hero.png");
-if (!tex_r.ok) console.error(tex_r.error);
+const tex_r = await a.load("image", "hero", "/sprites/hero.png");
+if (tex_r.ok) tex_r.value;        // Texture
 
-const sheet_r = await a.atlas("hero_atlas", "/sprites/hero.json");
-if (sheet_r.ok) sheet_r.value.textures["walk_0"];
+const sheet_r = await a.load("atlas", "hero_atlas", "/sprites/hero.json");
+if (sheet_r.ok) sheet_r.value.textures["walk_0"];   // Spritesheet
+```
 
-a.has("hero");                                    // → true
-a.texture("hero");                                 // → Result<Texture, AssetError>
-a.get<Spritesheet>("hero_atlas");                  // → Result<T, AssetError>
-a.dispose();                                       // clear cache
+Synchronous getters split by kind:
+
+```ts
+a.has("hero");                                   // → true
+a.texture("hero");                                // → Result<Texture, AssetError>
+a.atlas("hero_atlas");                            // → Result<Spritesheet, AssetError>
+a.get<Spritesheet>("hero_atlas");                 // → Result<T, AssetError>  (untyped)
+a.dispose();                                      // clear cache
+```
+
+## Shape
+
+```ts
+type AssetKind = "image" | "atlas";
+type LoadValue<K extends AssetKind> = K extends "image" ? Texture : Spritesheet;
+
+type Assets = {
+  load: <K extends AssetKind>(kind: K, alias: string, url: string)
+    => Promise<Result<LoadValue<K>, AssetError>>;
+  texture: (alias: string) => Result<Texture, AssetError>;
+  atlas:   (alias: string) => Result<Spritesheet, AssetError>;
+  get:     <T>(alias: string) => Result<T, AssetError>;
+  has:     (alias: string) => boolean;
+  registry:        () => AtlasRegistry;
+  register_atlas:  (alias: string, sheet: Spritesheet) => Result<void, AssetError>;
+  dispose: () => void;
+};
 ```
 
 ## AssetError cases
@@ -74,3 +100,19 @@ const a = assets({ register_default: false });
 ```
 
 (Pass your own `assets` instance via the `boot` API isn't currently supported — `register_default: true` is hard-coded inside `boot`. Bring-your-own atlases simply override entries with the same alias if you ever load `"__default__"` yourself.)
+
+## Migration from v0.2.0
+
+The pair `a.image(alias, url)` / `a.atlas(alias, url)` async loaders are unified as `a.load(kind, alias, url)`:
+
+```ts
+// v0.2.0
+await a.image("hero", "/sprites/hero.png");
+await a.atlas("hero_atlas", "/sprites/hero.json");
+
+// v0.3.0
+await a.load("image", "hero", "/sprites/hero.png");
+await a.load("atlas", "hero_atlas", "/sprites/hero.json");
+```
+
+The synchronous getter `a.texture(alias)` is unchanged. A new synchronous getter `a.atlas(alias)` returns the previously-loaded `Spritesheet` (mirrors `texture` for atlases). The `BootOpts.assets: AssetSpec[]` consumer-side shape is unchanged.

@@ -8,30 +8,34 @@ description: Opt-in subpath for grid-game primitives — cell math, Bresenham li
 ```ts
 import {
   grid,
-  line,
-  line_of_sight,
   grid_index,
   grid_index_sync_system,
-  move_tile,
   ticks_per_step,
 } from "@f0rbit/forge/grid";
+
+const g = grid({ cols: 20, rows: 11, tile: 16 });
+
+// `line`, `line_of_sight`, and `move_tile` are methods on the Grid record:
+for (const c of g.line({ x: 0, y: 0 }, { x: 4, y: 2 })) { /* … */ }
+const visible = g.line_of_sight({ from, radius: 6, is_blocking });
+const r       = g.move_tile(world, id, { dx, dy }, { blocked_by });
 ```
 
 ## Exports
 
 | Symbol | Kind | Page |
 |---|---|---|
-| [`grid`](/forge/grid/grid/) | factory | Build a `Grid` record bundling cell↔world conversion, key/unkey, neighbours, distances. |
-| [`line`](/forge/grid/line/) | function | Bresenham generator yielding every cell from `a` to `b` inclusive. |
-| [`line_of_sight`](/forge/grid/line-of-sight/) | function | Symmetric FOV — set of visible cell-keys from `from` within radius. |
+| [`grid`](/forge/grid/grid/) | factory | Build a `Grid` record bundling cell↔world conversion, key/unkey, neighbours, distances, **and** the spatial methods. |
+| [`grid.line`](/forge/grid/line/) | method | Bresenham generator yielding every cell from `a` to `b` inclusive. |
+| [`grid.line_of_sight`](/forge/grid/line-of-sight/) | method | Symmetric FOV — set of visible cell-keys from `from` within radius. |
 | [`grid_index`](/forge/grid/grid-index/) | factory | Cell-keyed spatial index over entities with `pos_c`. |
 | [`grid_index_sync_system`](/forge/grid/grid-index/) | factory | System that refreshes the index each tick. |
-| [`move_tile`](/forge/grid/move-tile/) | function | Step one cell with axis-sliding collision predicate. |
+| [`grid.move_tile`](/forge/grid/move-tile/) | method | Step one cell with axis-sliding collision predicate. |
 | [`ticks_per_step`](/forge/grid/ticks-per-step/) | function | Convert cells/sec → integer tick gate. |
 | `Cell`, `Grid`, `GridOpts` | types | Returned by `grid()`. |
-| `FovOpts` | type | Options for `line_of_sight`. |
+| `FovOpts` | type | Options for `g.line_of_sight`. (No `grid` field — closed over by the method.) |
 | `GridIndex` | type | Returned by `grid_index`. |
-| `TileMoveOpts`, `TileMoveResult` | types | `move_tile` shape. |
+| `TileMoveOpts`, `TileMoveResult` | types | `g.move_tile` shape. |
 
 ## When to import `/grid`
 
@@ -39,7 +43,7 @@ Roguelikes, sokoban, snake, tactics, match-3, factory-builder, top-down RPG — 
 
 ## Pairing with the input layer
 
-For tile-step games, pair the grid primitives with [`presets.movement_4way_digital`](/forge/input/presets/) (digital edges only — no axes, no diagonals) or [`presets.movement8way`](/forge/input/presets/) (digital edges + axes for analog smoothing).
+For tile-step games, pair the grid primitives with [`presets.movement_4way`](/forge/input/presets/) (digital edges only — no axes, no diagonals) or [`presets.movement_8way`](/forge/input/presets/) (digital edges + axes for analog smoothing).
 
 ```ts
 import { presets } from "@f0rbit/forge/presets";
@@ -47,7 +51,7 @@ import { boot } from "@f0rbit/forge/pixi";
 
 await boot({
   mount: "#root",
-  bindings: presets.movement_4way_digital,
+  bindings: presets.movement_4way,
   // ...
 });
 ```
