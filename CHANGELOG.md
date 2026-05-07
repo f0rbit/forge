@@ -1,5 +1,42 @@
 # @f0rbit/forge
 
+## 0.2.0
+
+### Minor Changes
+
+- v0.2.0 — bulk forge improvements driven by friction findings from `dungeon-walk` (the first echo subsystem). Zero breaking changes.
+
+  ## Core additions (`@f0rbit/forge`)
+
+  - `schedule.add_periodic(stage, sys, { every, phase? })` — wraps a system to run only every N ticks (with optional phase shift). Eliminates the `if (tick % step !== 0) return` boilerplate every periodic system was hand-writing.
+  - `world.query_data(data, markers, opts?)` — companion to `query()` that strips markers from the yielded tuple. `query_data([pos_c], [player_c])` yields `[Id, [Pos]]` instead of `[Id, [Pos, true]]` — removes the brittle `true`-in-destructure pattern.
+  - `world.spawn_many(count, factory)` — convenience for level setup, particle bursts, enemy waves. Returns `Id[]`.
+  - `world.despawn_marked(...markers)` — despawns every entity matching all listed markers. Returns count despawned.
+  - `SpriteData.scale?: { x, y }` (in `/pixi`) — `sprite_sync_system` applies it; default omitted = 1×1. Atlas frame size no longer dictates grid tile size.
+
+  ## New `@f0rbit/forge/grid` subpath
+
+  Opt-in subpath consolidating grid-game primitives every grid-based game (snake, sokoban, roguelike, tetris, dungeon crawler) wants:
+
+  - `grid({ cols, rows, tile })` — factory exposing `cell_to_world`, `world_to_cell`, `key`, `unkey`, `in_bounds`, `neighbors` (4- and 8-way), `chebyshev`, `manhattan`.
+  - `line(a, b)` — Bresenham generator. Foundation for FOV, telegraphs, attack indicators, drawing helpers.
+  - `line_of_sight({ from, radius, grid, is_blocking })` — Bresenham-based FOV returning `Set<key>` of visible cells.
+  - `grid_index(component, grid)` + `grid_index_sync_system` — spatial index over entities at integer cell coords.
+  - `move_tile(world, entity, dir, opts)` — read pos, gate by `blocked_by` predicate, write if clear. `slide: true` (default) tries X-then-Y axis-by-axis when diagonal is blocked, preventing corner-cutting through wall pairs.
+  - `ticks_per_step({ tile, cells_per_sec, fixed_dt })` — calibrate movement speed without hand-tuning magic step counts.
+
+  ## Presets
+
+  - `presets.movement_4way_digital` — discrete 4-way bindings (no axes, deadzone 0) for tile-step games where analog input is noise.
+
+  ## Documentation
+
+  `/grid` ships with 7 dedicated docs pages and 7 new cookbook patterns covering the v0.2.0 primitives. The site at https://f0rbit.github.io/forge/ reflects everything.
+
+  ## Tests
+
+  292 → 340 (+48). All gates green; replay determinism preserved.
+
 ## 0.1.6
 
 ### Patch Changes
