@@ -33,4 +33,5 @@ export default defineConfig([
   entry("debug/index", "src/debug/index.ts"),
   entry("storage/index", "src/storage/index.ts"),
   entry("presets/index", "src/presets/index.ts"),
+  entry("grid/index", "src/grid/index.ts"),
 ]);
