@@ -40,7 +40,7 @@ export type Query<C extends readonly Component<any>[]> = {
 	[Symbol.iterator]: () => Iterator<readonly [Id, ...ComponentTuple<C>]>;
 };
 
-export const internal = Symbol("forge.world.internal");
+export const internal = Symbol.for("forge.world.internal");
 
 export type WorldInternal = {
 	components_of: (id: Id) => readonly Component<any>[];
@@ -58,6 +58,12 @@ export type World = {
 	remove: (id: Id, c: Component<any>) => Result<void, EngineError>;
 	query: <C extends readonly Component<any>[]>(cs: C, opts?: QueryOpts) => Query<C>;
 	count: () => number;
+	/**
+	 * Despawns every entity and clears all component stores.
+	 * Useful for hard restarts (regenerate a level, reset to title screen).
+	 * Resources are NOT cleared.
+	 */
+	clear: () => void;
 	[internal]: WorldInternal;
 };
 
@@ -218,6 +224,17 @@ export const world = (): World => {
 
 	const count = (): number => entities.size;
 
+	const clear = (): void => {
+		entities.clear();
+		for (const [key, store] of stores) {
+			if (store.size > 0) {
+				store.clear();
+				versions.set(key, (versions.get(key) ?? 0) + 1);
+			}
+		}
+		next_id = 1;
+	};
+
 	return {
 		spawn,
 		spawn_at,
@@ -228,6 +245,7 @@ export const world = (): World => {
 		remove,
 		query,
 		count,
+		clear,
 		[internal]: {
 			components_of: (id: Id) => {
 				const out: Component<any>[] = [];
@@ -240,16 +258,7 @@ export const world = (): World => {
 				return out;
 			},
 			stores: () => stores as unknown as ReadonlyMap<symbol, ReadonlyMap<Id, unknown>>,
-			clear: () => {
-				entities.clear();
-				for (const [key, store] of stores) {
-					if (store.size > 0) {
-						store.clear();
-						versions.set(key, (versions.get(key) ?? 0) + 1);
-					}
-				}
-				next_id = 1;
-			},
+			clear,
 		},
 	};
 };

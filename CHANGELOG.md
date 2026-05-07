@@ -1,5 +1,13 @@
 # @f0rbit/forge
 
+## 0.1.6
+
+### Patch Changes
+
+- Fix cross-bundle `internal` Symbol — change `Symbol("internal")` to `Symbol.for("internal")`. Same fix pattern as v0.1.2's `pos_c` cross-bundle fix. Consumer code accessing `world[internal]` via the main entry now resolves to the same symbol as code in `/pixi`.
+
+  Add public `world.clear()` method — despawns every entity and clears all component stores. Useful for hard restarts. Resources are NOT cleared (separate concern).
+
 ## 0.1.5
 
 ### Patch Changes

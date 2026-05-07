@@ -91,4 +91,34 @@ describe("world", () => {
 		const names = cs.map(c => c.name).sort();
 		expect(names).toEqual(["pos", "vel"]);
 	});
+
+	test("clear despawns every entity, clears stores, resets id counter, world stays functional", () => {
+		const w = world();
+		w.spawn([pos, { x: 1, y: 1 }], [vel, { dx: 1, dy: 0 }]);
+		w.spawn([pos, { x: 2, y: 2 }], [tag, true]);
+		w.spawn([pos, { x: 3, y: 3 }]);
+		expect(w.count()).toBe(3);
+
+		w.clear();
+
+		expect(w.count()).toBe(0);
+		expect(w.query([pos]).collect().length).toBe(0);
+		expect(w.query([vel]).collect().length).toBe(0);
+		expect(w.query([tag]).collect().length).toBe(0);
+
+		const stores = w[internal].stores();
+		for (const [, store] of stores) expect(store.size).toBe(0);
+
+		const fresh = w.spawn([pos, { x: 9, y: 9 }]);
+		expect(fresh).toBe(1 as typeof fresh);
+		const got = w.get(fresh, pos);
+		expect(got.ok && got.value).toEqual({ x: 9, y: 9 });
+		expect(w.despawn(fresh).ok).toBe(true);
+		expect(w.count()).toBe(0);
+	});
+
+	test("internal symbol resolves via global registry — Symbol.for parity", () => {
+		expect(internal as symbol).toBe(Symbol.for("forge.world.internal"));
+		expect(Symbol.keyFor(internal as symbol)).toBe("forge.world.internal");
+	});
 });
