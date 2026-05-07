@@ -2,7 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { Container } from "pixi.js";
 import { world, time, rng, resources, input, debug_noop, palette_noop, type Ctx } from "../../src/index.ts";
 import { component } from "../../src/world.ts";
-import { assets, sprite_c, sprite_sync_system } from "../../src/pixi/index.ts";
+import { assets, sprite, sprite_c, sprite_sync_system } from "../../src/pixi/index.ts";
+import { sprite_node_for } from "../../src/pixi/sprite.ts";
 
 const pos = component<{ x: number; y: number }>("pos");
 
@@ -25,13 +26,12 @@ describe("sprite_sync_system", () => {
 
 		const id = w.spawn(
 			[pos, { x: 10, y: 20 }],
-			[sprite_c, { texture: "missing", node: null }],
+			[sprite_c, { texture: "missing" }],
 		);
 
 		sys(w, ctx);
 		expect(root.children.length).toBe(1);
-		const sd = w.get(id, sprite_c);
-		expect(sd.ok && sd.value.node).toBeDefined();
+		expect(sprite_node_for(w, id)).toBeDefined();
 	});
 
 	test("tracks position changes between ticks", () => {
@@ -43,14 +43,14 @@ describe("sprite_sync_system", () => {
 
 		const id = w.spawn(
 			[pos, { x: 0, y: 0 }],
-			[sprite_c, { texture: "x", node: null }],
+			[sprite_c, { texture: "x" }],
 		);
 		sys(w, ctx);
 		w.set(id, pos, { x: 100, y: 200 });
 		sys(w, ctx);
-		const sd = w.get(id, sprite_c);
-		expect(sd.ok && sd.value.node!.position.x).toBe(100);
-		expect(sd.ok && sd.value.node!.position.y).toBe(200);
+		const node = sprite_node_for(w, id);
+		expect(node!.position.x).toBe(100);
+		expect(node!.position.y).toBe(200);
 	});
 
 	test("destroys nodes for despawned entities on next sync", () => {
@@ -62,7 +62,7 @@ describe("sprite_sync_system", () => {
 
 		const id = w.spawn(
 			[pos, { x: 0, y: 0 }],
-			[sprite_c, { texture: "x", node: null }],
+			[sprite_c, { texture: "x" }],
 		);
 		sys(w, ctx);
 		expect(root.children.length).toBe(1);
@@ -81,13 +81,13 @@ describe("sprite_sync_system", () => {
 
 		const id = w.spawn(
 			[pos, { x: 0, y: 0 }],
-			[sprite_c, { texture: "x", anchor: { x: 0.5, y: 0.5 }, tint: 0xff00ff, node: null }],
+			[sprite_c, { texture: "x", anchor: { x: 0.5, y: 0.5 }, tint: 0xff00ff }],
 		);
 		sys(w, ctx);
-		const sd = w.get(id, sprite_c);
-		expect(sd.ok && sd.value.node!.anchor.x).toBe(0.5);
-		expect(sd.ok && sd.value.node!.anchor.y).toBe(0.5);
-		expect(sd.ok && sd.value.node!.tint).toBe(0xff00ff);
+		const node = sprite_node_for(w, id);
+		expect(node!.anchor.x).toBe(0.5);
+		expect(node!.anchor.y).toBe(0.5);
+		expect(node!.tint).toBe(0xff00ff);
 	});
 
 	test("applies scale when set; leaves node at default 1x1 when omitted", () => {
@@ -99,19 +99,19 @@ describe("sprite_sync_system", () => {
 
 		const scaled = w.spawn(
 			[pos, { x: 0, y: 0 }],
-			[sprite_c, { texture: "x", scale: { x: 2, y: 3 }, node: null }],
+			[sprite_c, { texture: "x", scale: { x: 2, y: 3 } }],
 		);
 		const plain = w.spawn(
 			[pos, { x: 0, y: 0 }],
-			[sprite_c, { texture: "x", node: null }],
+			[sprite_c, { texture: "x" }],
 		);
 		sys(w, ctx);
-		const a_sd = w.get(scaled, sprite_c);
-		expect(a_sd.ok && a_sd.value.node!.scale.x).toBe(2);
-		expect(a_sd.ok && a_sd.value.node!.scale.y).toBe(3);
-		const b_sd = w.get(plain, sprite_c);
-		expect(b_sd.ok && b_sd.value.node!.scale.x).toBe(1);
-		expect(b_sd.ok && b_sd.value.node!.scale.y).toBe(1);
+		const a_node = sprite_node_for(w, scaled);
+		expect(a_node!.scale.x).toBe(2);
+		expect(a_node!.scale.y).toBe(3);
+		const b_node = sprite_node_for(w, plain);
+		expect(b_node!.scale.x).toBe(1);
+		expect(b_node!.scale.y).toBe(1);
 	});
 
 	test("scale changes between frames update the node", () => {
@@ -123,16 +123,50 @@ describe("sprite_sync_system", () => {
 
 		const id = w.spawn(
 			[pos, { x: 0, y: 0 }],
-			[sprite_c, { texture: "x", scale: { x: 1, y: 1 }, node: null }],
+			[sprite_c, { texture: "x", scale: { x: 1, y: 1 } }],
 		);
 		sys(w, ctx);
-		const before = w.get(id, sprite_c);
-		expect(before.ok && before.value.node!.scale.x).toBe(1);
+		const before = sprite_node_for(w, id);
+		expect(before!.scale.x).toBe(1);
 
-		if (before.ok) w.set(id, sprite_c, { ...before.value, scale: { x: 4, y: 0.5 } });
+		sprite.set(w, id, { scale: { x: 4, y: 0.5 } });
 		sys(w, ctx);
-		const after = w.get(id, sprite_c);
-		expect(after.ok && after.value.node!.scale.x).toBe(4);
-		expect(after.ok && after.value.node!.scale.y).toBe(0.5);
+		const after = sprite_node_for(w, id);
+		expect(after!.scale.x).toBe(4);
+		expect(after!.scale.y).toBe(0.5);
+	});
+});
+
+describe("sprite helpers", () => {
+	test("sprite.set patches the existing component without spreading the prior fields manually", () => {
+		const w = world();
+		const id = w.spawn([sprite_c, { texture: "x", tint: 0xff0000 }]);
+		const r = sprite.set(w, id, { tint: 0x00ff00 });
+		expect(r.ok).toBe(true);
+		const cur = w.get(id, sprite_c);
+		expect(cur.ok && cur.value.tint).toBe(0x00ff00);
+		expect(cur.ok && cur.value.texture).toBe("x");
+	});
+
+	test("sprite.show toggles visible: true", () => {
+		const w = world();
+		const id = w.spawn([sprite_c, { texture: "x", visible: false }]);
+		sprite.show(w, id);
+		const cur = w.get(id, sprite_c);
+		expect(cur.ok && cur.value.visible).toBe(true);
+	});
+
+	test("sprite.hide toggles visible: false", () => {
+		const w = world();
+		const id = w.spawn([sprite_c, { texture: "x", visible: true }]);
+		sprite.hide(w, id);
+		const cur = w.get(id, sprite_c);
+		expect(cur.ok && cur.value.visible).toBe(false);
+	});
+
+	test("sprite.set on missing entity returns an error", () => {
+		const w = world();
+		const r = sprite.set(w, 999 as never, { tint: 0 });
+		expect(r.ok).toBe(false);
 	});
 });

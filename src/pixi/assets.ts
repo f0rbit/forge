@@ -14,10 +14,14 @@ export type AtlasJson = {
 	meta: { image?: string; format?: string; size?: { w: number; h: number }; scale?: number | string };
 };
 
+export type AssetKind = "image" | "atlas";
+
+export type LoadValue<K extends AssetKind> = K extends "image" ? Texture : Spritesheet;
+
 export type Assets_ = {
-	image: (alias: string, url: string) => Promise<Result<Texture, AssetError>>;
-	atlas: (alias: string, url: string) => Promise<Result<Spritesheet, AssetError>>;
+	load: <K extends AssetKind>(kind: K, alias: string, url: string) => Promise<Result<LoadValue<K>, AssetError>>;
 	texture: (alias: string) => Result<Texture, AssetError>;
+	atlas: (alias: string) => Result<Spritesheet, AssetError>;
 	get: <T>(alias: string) => Result<T, AssetError>;
 	has: (alias: string) => boolean;
 	register_atlas: (alias: string, sheet: Spritesheet) => Result<void, AssetError>;
@@ -176,43 +180,41 @@ export const assets = (opts?: AssetsOpts): Assets_ => {
 		if (def.ok) register_atlas_internal(DEFAULT_ATLAS_ALIAS, def.value);
 	}
 
-	const load_image = async (alias: string, url: string): Promise<Result<Texture, AssetError>> => {
+	const load = async <K extends AssetKind>(kind: K, alias: string, url: string): Promise<Result<LoadValue<K>, AssetError>> => {
 		try {
 			Assets.add({ alias, src: url });
 			const value = await Assets.load(alias);
-			if (!(value instanceof Texture)) {
-				return err({ kind: "wrong_kind", alias, expected: "Texture" });
+			if (kind === "image") {
+				if (!(value instanceof Texture)) {
+					return err({ kind: "wrong_kind", alias, expected: "Texture" });
+				}
+				cache.set(alias, { kind: "image", alias, texture: value });
+				return ok(value as LoadValue<K>);
 			}
-			cache.set(alias, { kind: "image", alias, texture: value });
-			return ok(value);
-		} catch (e) {
-			return err({ kind: "load_failed", alias, url, cause: (e as Error).message ?? String(e) });
-		}
-	};
-
-	const load_atlas = async (alias: string, url: string): Promise<Result<Spritesheet, AssetError>> => {
-		try {
-			Assets.add({ alias, src: url });
-			const value = await Assets.load(alias);
 			if (!(value instanceof Spritesheet)) {
 				return err({ kind: "wrong_kind", alias, expected: "Spritesheet" });
 			}
 			const r = register_atlas_internal(alias, value);
 			if (!r.ok) return r;
-			return ok(value);
+			return ok(value as LoadValue<K>);
 		} catch (e) {
 			return err({ kind: "load_failed", alias, url, cause: (e as Error).message ?? String(e) });
 		}
 	};
 
 	return {
-		image: load_image,
-		atlas: load_atlas,
+		load,
 		texture: alias => {
 			const e = cache.get(alias);
 			if (!e) return err({ kind: "not_loaded", alias });
 			if (e.kind === "image") return ok(e.texture);
 			return err({ kind: "wrong_kind", alias, expected: "Texture" });
+		},
+		atlas: alias => {
+			const e = cache.get(alias);
+			if (!e) return err({ kind: "not_loaded", alias });
+			if (e.kind === "atlas") return ok(e.sheet);
+			return err({ kind: "wrong_kind", alias, expected: "Spritesheet" });
 		},
 		get: <T>(alias: string): Result<T, AssetError> => {
 			const e = cache.get(alias);

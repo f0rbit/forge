@@ -1,10 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { line } from "../../src/grid/index.ts";
+import { grid } from "../../src/grid/index.ts";
 import type { Cell } from "../../src/grid/index.ts";
 
-const collect = (a: Cell, b: Cell): Cell[] => Array.from(line(a, b));
+const g = grid({ cols: 64, rows: 64, tile: 1 });
+const collect = (a: Cell, b: Cell): Cell[] => Array.from(g.line(a, b));
 
-describe("line", () => {
+describe("grid.line", () => {
 	test("single-cell line yields just the endpoint", () => {
 		const cells = collect({ x: 4, y: 4 }, { x: 4, y: 4 });
 		expect(cells).toEqual([{ x: 4, y: 4 }]);

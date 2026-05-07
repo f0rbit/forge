@@ -1,9 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { component, world } from "../../src/index.ts";
-import { grid, move_tile } from "../../src/grid/index.ts";
+import { component, world, pos_c } from "../../src/index.ts";
+import { grid } from "../../src/grid/index.ts";
 import type { Cell } from "../../src/grid/index.ts";
-
-const pos_c = component<{ x: number; y: number }>("test.pos");
 
 const setup = () => {
 	const w = world();
@@ -13,10 +11,10 @@ const setup = () => {
 	return { w, g, id };
 };
 
-describe("move_tile", () => {
+describe("grid.move_tile", () => {
 	test("moves into an empty cell and updates pos", () => {
 		const { w, g, id } = setup();
-		const r = move_tile(w, id, pos_c, g, { dx: 1, dy: 0 }, { blocked_by: () => false });
+		const r = g.move_tile(w, id, { dx: 1, dy: 0 }, { blocked_by: () => false });
 		expect(r.ok).toBe(true);
 		if (!r.ok) return;
 		expect(r.value.moved).toBe(true);
@@ -33,7 +31,7 @@ describe("move_tile", () => {
 	test("blocked target leaves pos unchanged and reports moved=false", () => {
 		const { w, g, id } = setup();
 		const blocked: Cell = { x: 6, y: 5 };
-		const r = move_tile(w, id, pos_c, g, { dx: 1, dy: 0 }, {
+		const r = g.move_tile(w, id, { dx: 1, dy: 0 }, {
 			blocked_by: c => c.x === blocked.x && c.y === blocked.y,
 		});
 		expect(r.ok).toBe(true);
@@ -44,7 +42,7 @@ describe("move_tile", () => {
 
 	test("zero direction is a no-op", () => {
 		const { w, g, id } = setup();
-		const r = move_tile(w, id, pos_c, g, { dx: 0, dy: 0 }, { blocked_by: () => false });
+		const r = g.move_tile(w, id, { dx: 0, dy: 0 }, { blocked_by: () => false });
 		expect(r.ok).toBe(true);
 		if (!r.ok) return;
 		expect(r.value.moved).toBe(false);
@@ -52,7 +50,7 @@ describe("move_tile", () => {
 
 	test("slide=true: blocked X leaves Y attempt to succeed", () => {
 		const { w, g, id } = setup();
-		const r = move_tile(w, id, pos_c, g, { dx: 1, dy: 1 }, {
+		const r = g.move_tile(w, id, { dx: 1, dy: 1 }, {
 			blocked_by: c => c.x === 6 && c.y === 5,
 		});
 		expect(r.ok).toBe(true);
@@ -63,7 +61,7 @@ describe("move_tile", () => {
 
 	test("slide=false: any blocked component aborts diagonal", () => {
 		const { w, g, id } = setup();
-		const r = move_tile(w, id, pos_c, g, { dx: 1, dy: 1 }, {
+		const r = g.move_tile(w, id, { dx: 1, dy: 1 }, {
 			slide: false,
 			blocked_by: c => c.x === 6 && c.y === 6,
 		});
@@ -74,7 +72,7 @@ describe("move_tile", () => {
 
 	test("slide prevents corner-cutting when both axes blocked", () => {
 		const { w, g, id } = setup();
-		const r = move_tile(w, id, pos_c, g, { dx: 1, dy: 1 }, {
+		const r = g.move_tile(w, id, { dx: 1, dy: 1 }, {
 			blocked_by: c => (c.x === 6 && c.y === 5) || (c.x === 5 && c.y === 6) || (c.x === 6 && c.y === 6),
 		});
 		expect(r.ok).toBe(true);
@@ -87,7 +85,7 @@ describe("move_tile", () => {
 		const g = grid({ cols: 10, rows: 10, tile: 16 });
 		const corner = g.cell_to_world(0, 0);
 		const id = w.spawn([pos_c, { x: corner.x, y: corner.y }]);
-		const r = move_tile(w, id, pos_c, g, { dx: -1, dy: 0 }, { blocked_by: () => false });
+		const r = g.move_tile(w, id, { dx: -1, dy: 0 }, { blocked_by: () => false });
 		expect(r.ok).toBe(true);
 		if (!r.ok) return;
 		expect(r.value.moved).toBe(false);
@@ -97,9 +95,21 @@ describe("move_tile", () => {
 		const w = world();
 		const g = grid({ cols: 10, rows: 10, tile: 16 });
 		const id = w.spawn();
-		const r = move_tile(w, id, pos_c, g, { dx: 1, dy: 0 }, { blocked_by: () => false });
+		const r = g.move_tile(w, id, { dx: 1, dy: 0 }, { blocked_by: () => false });
 		expect(r.ok).toBe(false);
 		if (r.ok) return;
 		expect(r.error.kind).toBe("component_missing");
+	});
+
+	test("respects custom pos override", () => {
+		const w = world();
+		const g = grid({ cols: 10, rows: 10, tile: 16 });
+		const my_pos = component<{ x: number; y: number }>("custom.pos");
+		const start = g.cell_to_world(2, 2);
+		const id = w.spawn([my_pos, { x: start.x, y: start.y }]);
+		const r = g.move_tile(w, id, { dx: 1, dy: 0 }, { blocked_by: () => false, pos: my_pos });
+		expect(r.ok).toBe(true);
+		if (!r.ok) return;
+		expect(r.value.moved).toBe(true);
 	});
 });

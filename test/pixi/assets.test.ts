@@ -58,6 +58,22 @@ describe("assets()", () => {
 		if (!r.ok) expect(r.error.kind).toBe("not_loaded");
 	});
 
+	test("atlas() synchronous getter returns the registered sheet", () => {
+		const a = assets({ register_default: false });
+		const sheet = fake_sheet({ a: { frame: { x: 0, y: 0, w: 16, h: 16 } } });
+		a.register_atlas("hero", sheet);
+		const r = a.atlas("hero");
+		expect(r.ok).toBe(true);
+		if (r.ok) expect(r.value).toBe(sheet);
+	});
+
+	test("atlas() returns not_loaded for missing alias", () => {
+		const a = assets({ register_default: false });
+		const r = a.atlas("missing");
+		expect(r.ok).toBe(false);
+		if (!r.ok) expect(r.error.kind).toBe("not_loaded");
+	});
+
 	test("get<Spritesheet> returns the registered sheet", () => {
 		const a = assets({ register_default: false });
 		const sheet = fake_sheet({ a: { frame: { x: 0, y: 0, w: 16, h: 16 } } });

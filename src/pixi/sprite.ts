@@ -1,6 +1,8 @@
+import { ok, type Result } from "@f0rbit/corpus";
 import { Container, Sprite, Texture } from "pixi.js";
 import type { System } from "../schedule.ts";
-import { component, type Component, type Id } from "../world.ts";
+import { component, type Component, type Id, type World } from "../world.ts";
+import type { EngineError } from "../errors.ts";
 import type { Assets_ } from "./assets.ts";
 
 export type SpriteData = {
@@ -11,20 +13,21 @@ export type SpriteData = {
 	visible?: boolean;
 	z?: number;
 	scale?: { x: number; y: number };
-	node?: Sprite | null;
 };
 
 export const sprite_c: Component<SpriteData> = component<SpriteData>("sprite");
 
 export type Pos = { x: number; y: number };
 
-const POS_NAME = "pos";
+const node_map = new WeakMap<World, Map<Id, Sprite>>();
 
-const is_pos = (c: Component<any>): boolean => c.name === POS_NAME;
-
-const find_pos_component = (cs: readonly Component<any>[]): Component<{ x: number; y: number }> | null => {
-	for (const c of cs) if (is_pos(c)) return c as Component<{ x: number; y: number }>;
-	return null;
+const get_nodes = (w: World): Map<Id, Sprite> => {
+	let m = node_map.get(w);
+	if (!m) {
+		m = new Map<Id, Sprite>();
+		node_map.set(w, m);
+	}
+	return m;
 };
 
 const resolve_texture = (assets: Assets_, atlas_or_alias: string, frame: string | undefined): Texture | null => {
@@ -52,19 +55,17 @@ export type SpriteSystemOpts = {
 };
 
 export const sprite_sync_system = (opts: SpriteSystemOpts): System => {
-	const known = new Map<Id, Sprite>();
-
 	return (w, _ctx) => {
+		const known = get_nodes(w);
 		const seen = new Set<Id>();
 		const q = w.query([opts.pos_component, sprite_c] as const);
 		for (const [id, pos, sd] of q) {
 			seen.add(id);
-			let node = sd.node ?? known.get(id) ?? null;
+			let node = known.get(id) ?? null;
 			if (!node) {
 				node = new Sprite();
 				opts.world_container.addChild(node);
 				known.set(id, node);
-				w.set(id, sprite_c, { ...sd, node });
 			}
 			const tex = resolve_texture(opts.assets, sd.texture, sd.frame);
 			if (tex && node.texture !== tex) node.texture = tex;
@@ -85,7 +86,17 @@ export const sprite_sync_system = (opts: SpriteSystemOpts): System => {
 	};
 };
 
-export const sprite_internal = {
-	resolve_texture,
-	find_pos_component,
+const set_patch = (w: World, id: Id, patch: Partial<SpriteData>): Result<void, EngineError> => {
+	const cur = w.get(id, sprite_c);
+	if (!cur.ok) return cur;
+	return w.set(id, sprite_c, { ...cur.value, ...patch });
 };
+
+export const sprite = {
+	set: set_patch,
+	show: (w: World, id: Id): Result<void, EngineError> => set_patch(w, id, { visible: true }),
+	hide: (w: World, id: Id): Result<void, EngineError> => set_patch(w, id, { visible: false }),
+};
+
+/** @internal — used by `anim_sync_system` to apply the active frame texture. */
+export const sprite_node_for = (w: World, id: Id): Sprite | undefined => node_map.get(w)?.get(id);

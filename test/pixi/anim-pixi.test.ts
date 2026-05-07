@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { BufferImageSource, Spritesheet, Texture } from "pixi.js";
+import { BufferImageSource, Container, Spritesheet, Texture } from "pixi.js";
 import { world, time, rng, resources, input, debug_noop, palette_noop, atlas_registry, anim_c, type Ctx } from "../../src/index.ts";
 import { component } from "../../src/world.ts";
-import { assets, sprite_c, anim_sync_system } from "../../src/pixi/index.ts";
+import { assets, sprite_c, sprite_sync_system, anim_sync_system } from "../../src/pixi/index.ts";
+import { sprite_node_for } from "../../src/pixi/sprite.ts";
 
 const pos = component<{ x: number; y: number }>("pos");
 
@@ -46,16 +47,19 @@ describe("anim_sync_system", () => {
 		a.register_atlas("hero", sheet);
 		ctx.res.set(atlas_registry, a.registry());
 
+		const root = new Container();
+		const sprite_sys = sprite_sync_system({ assets: a, world_container: root, pos_component: pos });
 		const sys = anim_sync_system({ assets: a });
 		const id = w.spawn(
 			[pos, { x: 0, y: 0 }],
 			[anim_c, { atlas: "hero", sequence: "walk", frame: 1, t: 0, speed: 1, loop: true, done: false }],
-			[sprite_c, { texture: "hero", node: { texture: null } as never }],
+			[sprite_c, { texture: "hero" }],
 		);
 
+		sprite_sys(w, ctx);
 		sys(w, ctx);
-		const sd = w.get(id, sprite_c);
-		expect(sd.ok && sd.value.node!.texture).toBe(sheet.textures["b"] as Texture);
+		const node = sprite_node_for(w, id);
+		expect(node!.texture).toBe(sheet.textures["b"] as Texture);
 	});
 
 	test("falls back to __default__ atlas when alias missing", () => {
@@ -64,13 +68,16 @@ describe("anim_sync_system", () => {
 		const a = assets({ register_default: true, fixed_dt: ctx.time.fixed_dt });
 		ctx.res.set(atlas_registry, a.registry());
 
+		const root = new Container();
+		const sprite_sys = sprite_sync_system({ assets: a, world_container: root, pos_component: pos });
 		const sys = anim_sync_system({ assets: a });
 		w.spawn(
 			[pos, { x: 0, y: 0 }],
 			[anim_c, { atlas: "ghost", sequence: "spin", frame: 0, t: 0, speed: 1, loop: true, done: false }],
-			[sprite_c, { texture: "ghost", node: { texture: null } as never }],
+			[sprite_c, { texture: "ghost" }],
 		);
 
+		sprite_sys(w, ctx);
 		sys(w, ctx);
 	});
 
@@ -82,15 +89,18 @@ describe("anim_sync_system", () => {
 		a.register_atlas("hero", sheet);
 		ctx.res.set(atlas_registry, a.registry());
 
+		const root = new Container();
+		const sprite_sys = sprite_sync_system({ assets: a, world_container: root, pos_component: pos });
 		const sys = anim_sync_system({ assets: a });
 		const id = w.spawn(
 			[pos, { x: 0, y: 0 }],
 			[anim_c, { atlas: "hero", sequence: "walk", frame: 99, t: 0, speed: 1, loop: false, done: true }],
-			[sprite_c, { texture: "hero", node: { texture: null } as never }],
+			[sprite_c, { texture: "hero" }],
 		);
 
+		sprite_sys(w, ctx);
 		sys(w, ctx);
-		const sd = w.get(id, sprite_c);
-		expect(sd.ok && sd.value.node!.texture).toBe(sheet.textures["c"] as Texture);
+		const node = sprite_node_for(w, id);
+		expect(node!.texture).toBe(sheet.textures["c"] as Texture);
 	});
 });

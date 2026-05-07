@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { world, schedule, time, rng, resources, input, debug, palette, atlas_registry, pos_c, type Ctx } from "../../src/index.ts";
 import { Container } from "pixi.js";
 import { assets, browser_source, camera, sprite_c, sprite_sync_system, anim_sync_system, debug_pixi, palette_pixi } from "../../src/pixi/index.ts";
+import { sprite_node_for } from "../../src/pixi/sprite.ts";
 
 const pos = pos_c;
 
@@ -46,7 +47,7 @@ describe("boot-equivalent smoke test", () => {
 
 		w.spawn(
 			[pos, { x: 10, y: 10 }],
-			[sprite_c, { texture: "__default__", node: null }],
+			[sprite_c, { texture: "__default__" }],
 		);
 
 		for (let i = 0; i < 60; i++) {
@@ -85,7 +86,7 @@ describe("boot-equivalent smoke test", () => {
 
 		const id = w.spawn(
 			[pos_c, { x: 0, y: 0 }],
-			[sprite_c, { texture: "__default__", node: null }],
+			[sprite_c, { texture: "__default__" }],
 		);
 
 		const move_system = (world_in: typeof w): void => {
@@ -101,9 +102,9 @@ describe("boot-equivalent smoke test", () => {
 
 		const sd = w.get(id, sprite_c);
 		expect(sd.ok).toBe(true);
-		if (sd.ok && sd.value.node) {
-			expect(sd.value.node.position.x).toBe(5);
-			expect(sd.value.node.position.y).toBe(10);
-		}
+		const node = sprite_node_for(w, id);
+		expect(node).toBeDefined();
+		expect(node!.position.x).toBe(5);
+		expect(node!.position.y).toBe(10);
 	});
 });

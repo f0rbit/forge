@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { BufferImageSource, Spritesheet, Texture } from "pixi.js";
+import { BufferImageSource, Container, Spritesheet, Texture } from "pixi.js";
 import {
 	world,
 	schedule,
@@ -17,6 +17,7 @@ import {
 } from "../../src/index.ts";
 import { component } from "../../src/world.ts";
 import { assets, anim_sync_system, sprite_c, sprite_sync_system } from "../../src/pixi/index.ts";
+import { sprite_node_for } from "../../src/pixi/sprite.ts";
 
 const pos = component<{ x: number; y: number }>("pos");
 
@@ -66,13 +67,15 @@ describe("anim-pixi integration", () => {
 		};
 
 		const an = anim();
+		const root = new Container();
 		sch.add("update", an.advance, "anim.advance");
+		sch.add("post", sprite_sync_system({ assets: a, world_container: root, pos_component: pos }), "sprite.sync");
 		sch.add("post", anim_sync_system({ assets: a, default_atlas: "hero" }), "anim.sync");
 
 		const id = w.spawn(
 			[pos, { x: 0, y: 0 }],
 			[anim_c, { atlas: "hero", sequence: "walk", frame: 0, t: 0, speed: 1, loop: true, done: false }],
-			[sprite_c, { texture: "hero", frame: "f0.png", node: { texture: sheet.textures["f0.png"] } as never }],
+			[sprite_c, { texture: "hero", frame: "f0.png" }],
 		);
 
 		const advance_ticks = (n: number): void => {
@@ -90,19 +93,15 @@ describe("anim-pixi integration", () => {
 		advance_ticks(frame_ticks);
 		const a1 = w.get(id, anim_c);
 		expect(a1.ok && a1.value.frame).toBe(1);
-		const sd1 = w.get(id, sprite_c);
-		expect(sd1.ok).toBe(true);
-		if (sd1.ok && sd1.value.node) {
-			expect(sd1.value.node.texture).toBe(sheet.textures["f1.png"] as Texture);
-		}
+		const node1 = sprite_node_for(w, id);
+		expect(node1).toBeDefined();
+		expect(node1!.texture).toBe(sheet.textures["f1.png"] as Texture);
 
 		advance_ticks(frame_ticks);
 		const a2 = w.get(id, anim_c);
 		expect(a2.ok && a2.value.frame).toBe(2);
-		const sd2 = w.get(id, sprite_c);
-		if (sd2.ok && sd2.value.node) {
-			expect(sd2.value.node.texture).toBe(sheet.textures["f2.png"] as Texture);
-		}
+		const node2 = sprite_node_for(w, id);
+		expect(node2!.texture).toBe(sheet.textures["f2.png"] as Texture);
 	});
 
 	test("missing-frame fallback uses __default__ atlas", () => {
@@ -125,24 +124,24 @@ describe("anim-pixi integration", () => {
 		};
 
 		const an = anim();
+		const root = new Container();
 		sch.add("update", an.advance, "anim.advance");
+		sch.add("post", sprite_sync_system({ assets: a, world_container: root, pos_component: pos }), "sprite.sync");
 		sch.add("post", anim_sync_system({ assets: a }), "anim.sync");
 
 		const id = w.spawn(
 			[pos, { x: 0, y: 0 }],
 			[anim_c, { atlas: "missing", sequence: "spin", frame: 0, t: 0, speed: 1, loop: true, done: false }],
-			[sprite_c, { texture: "__default__", node: { texture: null } as never }],
+			[sprite_c, { texture: "__default__" }],
 		);
 
 		for (let i = 0; i < 5; i++) sch.run("update", w, ctx);
 		sch.run("post", w, ctx);
 
-		const sd = w.get(id, sprite_c);
-		expect(sd.ok).toBe(true);
-		if (sd.ok && sd.value.node) {
-			expect(sd.value.node.texture).toBeDefined();
-			expect(sd.value.node.texture).not.toBeNull();
-		}
+		const node = sprite_node_for(w, id);
+		expect(node).toBeDefined();
+		expect(node!.texture).toBeDefined();
+		expect(node!.texture).not.toBeNull();
 	});
 
 	test("__default__ atlas is auto-registered with a 4-frame spin sequence", () => {

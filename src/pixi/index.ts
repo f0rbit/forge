@@ -22,11 +22,11 @@ import { palette as make_palette } from "../palette/palette.ts";
 import { world as make_world } from "../world.ts";
 import { schedule as make_schedule } from "../schedule.ts";
 
-import { assets, type AssetError, type Assets_, type AssetsOpts } from "./assets.ts";
+import { assets, type AssetError, type Assets_, type AssetsOpts, type AssetKind, type LoadValue } from "./assets.ts";
 import { browser_source, type BrowserSource, type BrowserSourceOpts } from "./input-browser.ts";
 import { camera, type Camera, type CameraOpts, type CameraMode, type Viewport } from "./camera.ts";
 import { make_render, type RenderState, type RenderError, type RenderOpts } from "./render.ts";
-import { sprite_c, sprite_sync_system, type SpriteData, type SpriteSystemOpts } from "./sprite.ts";
+import { sprite, sprite_c, sprite_sync_system, type SpriteData, type SpriteSystemOpts } from "./sprite.ts";
 import { anim_sync_system, type AnimPixiOpts } from "./anim-pixi.ts";
 import { debug_pixi, type DebugPixiOpts } from "./debug-pixi.ts";
 import { palette_pixi, type PalettePixiOpts } from "./palette-pixi.ts";
@@ -36,6 +36,7 @@ export {
 	browser_source,
 	camera,
 	make_render,
+	sprite,
 	sprite_c,
 	sprite_sync_system,
 	anim_sync_system,
@@ -45,6 +46,8 @@ export {
 
 export type {
 	AssetError,
+	AssetKind,
+	LoadValue,
 	Assets_ as Assets,
 	AssetsOpts,
 	BrowserSource,
@@ -168,7 +171,7 @@ export const boot = async (opts: BootOpts): Promise<Result<App, BootError>> => {
 
 	if (opts.assets) {
 		for (const spec of opts.assets) {
-			const result = spec.kind === "image" ? await a.image(spec.alias, spec.url) : await a.atlas(spec.alias, spec.url);
+			const result = await a.load(spec.kind, spec.alias, spec.url);
 			if (!result.ok) {
 				render.dispose();
 				return err({ kind: "asset_failed", alias: spec.alias, cause: result.error });
