@@ -121,4 +121,117 @@ describe("world", () => {
 		expect(internal as symbol).toBe(Symbol.for("forge.world.internal"));
 		expect(Symbol.keyFor(internal as symbol)).toBe("forge.world.internal");
 	});
+
+	describe("spawn_many", () => {
+		test("spawns N entities each with the factory's component set", () => {
+			const w = world();
+			const ids = w.spawn_many(4, i => [
+				[pos, { x: i, y: i * 2 }],
+				[vel, { dx: i + 1, dy: 0 }],
+			] as const);
+			expect(ids).toHaveLength(4);
+			expect(w.count()).toBe(4);
+			for (let i = 0; i < ids.length; i++) {
+				const id = ids[i]!;
+				const p = w.get(id, pos);
+				const v = w.get(id, vel);
+				expect(p.ok && p.value).toEqual({ x: i, y: i * 2 });
+				expect(v.ok && v.value).toEqual({ dx: i + 1, dy: 0 });
+			}
+		});
+
+		test("returns Id[] in monotonically increasing order matching spawn order", () => {
+			const w = world();
+			const ids = w.spawn_many(3, () => [[pos, { x: 0, y: 0 }]] as const);
+			expect(ids[0]).toBeLessThan(ids[1]!);
+			expect(ids[1]).toBeLessThan(ids[2]!);
+		});
+
+		test("factory's i parameter increments correctly", () => {
+			const w = world();
+			const seen: number[] = [];
+			w.spawn_many(5, i => {
+				seen.push(i);
+				return [[pos, { x: i, y: 0 }]] as const;
+			});
+			expect(seen).toEqual([0, 1, 2, 3, 4]);
+		});
+
+		test("count: 0 returns an empty array and spawns nothing", () => {
+			const w = world();
+			const ids = w.spawn_many(0, () => [[pos, { x: 0, y: 0 }]] as const);
+			expect(ids).toEqual([]);
+			expect(w.count()).toBe(0);
+		});
+
+		test("negative count throws", () => {
+			const w = world();
+			expect(() => w.spawn_many(-1, () => [[pos, { x: 0, y: 0 }]] as const)).toThrow(/non-negative integer/);
+		});
+
+		test("non-integer count throws", () => {
+			const w = world();
+			expect(() => w.spawn_many(2.5, () => [[pos, { x: 0, y: 0 }]] as const)).toThrow(/non-negative integer/);
+		});
+	});
+
+	describe("despawn_marked", () => {
+		const floor_c = component<true>("floor");
+		const player_c = component<true>("player");
+		const enemy_c = component<true>("enemy");
+
+		test("despawns entities matching the single marker, leaves others", () => {
+			const w = world();
+			w.spawn([pos, { x: 0, y: 0 }], [floor_c, true]);
+			w.spawn([pos, { x: 1, y: 1 }], [floor_c, true]);
+			w.spawn([pos, { x: 2, y: 2 }], [floor_c, true]);
+			w.spawn([pos, { x: 9, y: 9 }], [player_c, true]);
+
+			const n = w.despawn_marked(floor_c);
+			expect(n).toBe(3);
+			expect(w.count()).toBe(1);
+			expect(w.query([floor_c]).collect().length).toBe(0);
+			expect(w.query([player_c]).collect().length).toBe(1);
+		});
+
+		test("returns count despawned including zero when no entity matches", () => {
+			const w = world();
+			w.spawn([pos, { x: 0, y: 0 }], [player_c, true]);
+			expect(w.despawn_marked(enemy_c)).toBe(0);
+			expect(w.count()).toBe(1);
+		});
+
+		test("AND-combines multiple markers — entity must have all listed", () => {
+			const w = world();
+			w.spawn([floor_c, true]);
+			w.spawn([floor_c, true], [enemy_c, true]);
+			w.spawn([enemy_c, true]);
+			w.spawn([player_c, true], [enemy_c, true]);
+
+			const n = w.despawn_marked(floor_c, enemy_c);
+			expect(n).toBe(1);
+			expect(w.count()).toBe(3);
+			expect(w.query([floor_c]).collect().length).toBe(1);
+			expect(w.query([enemy_c]).collect().length).toBe(2);
+		});
+
+		test("empty markers list is a no-op returning 0", () => {
+			const w = world();
+			w.spawn([pos, { x: 0, y: 0 }]);
+			w.spawn([pos, { x: 1, y: 1 }]);
+			expect(w.despawn_marked()).toBe(0);
+			expect(w.count()).toBe(2);
+		});
+
+		test("clears all stores for despawned entities (not just markers)", () => {
+			const w = world();
+			const id = w.spawn([pos, { x: 5, y: 5 }], [vel, { dx: 1, dy: 0 }], [enemy_c, true]);
+			w.spawn([pos, { x: 0, y: 0 }], [player_c, true]);
+
+			expect(w.despawn_marked(enemy_c)).toBe(1);
+			expect(w.has(id, pos)).toBe(false);
+			expect(w.has(id, vel)).toBe(false);
+			expect(w.has(id, enemy_c)).toBe(false);
+		});
+	});
 });

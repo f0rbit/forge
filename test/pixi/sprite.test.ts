@@ -89,4 +89,50 @@ describe("sprite_sync_system", () => {
 		expect(sd.ok && sd.value.node!.anchor.y).toBe(0.5);
 		expect(sd.ok && sd.value.node!.tint).toBe(0xff00ff);
 	});
+
+	test("applies scale when set; leaves node at default 1x1 when omitted", () => {
+		const w = world();
+		const ctx = make_ctx();
+		const a = assets({ register_default: false });
+		const root = new Container();
+		const sys = sprite_sync_system({ assets: a, world_container: root, pos_component: pos });
+
+		const scaled = w.spawn(
+			[pos, { x: 0, y: 0 }],
+			[sprite_c, { texture: "x", scale: { x: 2, y: 3 }, node: null }],
+		);
+		const plain = w.spawn(
+			[pos, { x: 0, y: 0 }],
+			[sprite_c, { texture: "x", node: null }],
+		);
+		sys(w, ctx);
+		const a_sd = w.get(scaled, sprite_c);
+		expect(a_sd.ok && a_sd.value.node!.scale.x).toBe(2);
+		expect(a_sd.ok && a_sd.value.node!.scale.y).toBe(3);
+		const b_sd = w.get(plain, sprite_c);
+		expect(b_sd.ok && b_sd.value.node!.scale.x).toBe(1);
+		expect(b_sd.ok && b_sd.value.node!.scale.y).toBe(1);
+	});
+
+	test("scale changes between frames update the node", () => {
+		const w = world();
+		const ctx = make_ctx();
+		const a = assets({ register_default: false });
+		const root = new Container();
+		const sys = sprite_sync_system({ assets: a, world_container: root, pos_component: pos });
+
+		const id = w.spawn(
+			[pos, { x: 0, y: 0 }],
+			[sprite_c, { texture: "x", scale: { x: 1, y: 1 }, node: null }],
+		);
+		sys(w, ctx);
+		const before = w.get(id, sprite_c);
+		expect(before.ok && before.value.node!.scale.x).toBe(1);
+
+		if (before.ok) w.set(id, sprite_c, { ...before.value, scale: { x: 4, y: 0.5 } });
+		sys(w, ctx);
+		const after = w.get(id, sprite_c);
+		expect(after.ok && after.value.node!.scale.x).toBe(4);
+		expect(after.ok && after.value.node!.scale.y).toBe(0.5);
+	});
 });

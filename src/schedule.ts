@@ -16,8 +16,11 @@ export type System = (w: World, ctx: Ctx) => void;
 
 type Entry = { name: string; fn: System };
 
+export type PeriodicOpts = { every: number; phase?: number };
+
 export type Schedule = {
 	add: (stage: Stage, system: System, name?: string) => Schedule;
+	add_periodic: (stage: Stage, system: System, opts: PeriodicOpts, name?: string) => Schedule;
 	remove: (name: string) => Schedule;
 	tick: (w: World, ctx: Ctx) => void;
 	run: (stage: Stage, w: World, ctx: Ctx) => void;
@@ -42,6 +45,22 @@ export const schedule = (): Schedule => {
 	const api: Schedule = {
 		add: (stage, system, name) => {
 			const entry: Entry = { name: name ?? `__sys_${auto_id++}`, fn: system };
+			list(stage).push(entry);
+			return api;
+		},
+		add_periodic: (stage, system, opts, name) => {
+			if (!Number.isFinite(opts.every) || opts.every < 1 || !Number.isInteger(opts.every)) {
+				throw new Error(`[forge] schedule.add_periodic: 'every' must be a positive integer (>= 1), got ${opts.every}`); // non-deterministic-ok: programmer-error guard
+			}
+			const phase = opts.phase ?? 0;
+			if (!Number.isFinite(phase) || phase < 0 || !Number.isInteger(phase)) {
+				throw new Error(`[forge] schedule.add_periodic: 'phase' must be a non-negative integer, got ${phase}`); // non-deterministic-ok: programmer-error guard
+			}
+			const every = opts.every;
+			const gated: System = (w, ctx) => {
+				if (ctx.time.tick % every === phase % every) system(w, ctx);
+			};
+			const entry: Entry = { name: name ?? `__sys_${auto_id++}`, fn: gated };
 			list(stage).push(entry);
 			return api;
 		},

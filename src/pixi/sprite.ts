@@ -10,6 +10,7 @@ export type SpriteData = {
 	tint?: number;
 	visible?: boolean;
 	z?: number;
+	scale?: { x: number; y: number };
 	node?: Sprite | null;
 };
 
@@ -69,6 +70,7 @@ export const sprite_sync_system = (opts: SpriteSystemOpts): System => {
 			if (tex && node.texture !== tex) node.texture = tex;
 			if (sd.anchor) node.anchor.set(sd.anchor.x, sd.anchor.y);
 			if (sd.tint !== undefined) node.tint = sd.tint;
+			if (sd.scale) node.scale.set(sd.scale.x, sd.scale.y);
 			node.visible = sd.visible ?? true;
 			node.position.set(pos.x, pos.y);
 			if (sd.z !== undefined) node.zIndex = sd.z;

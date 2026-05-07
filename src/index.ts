@@ -3,13 +3,13 @@ export const VERSION = "0.0.1" as const;
 import { component, type Component } from "./world.ts";
 
 export { world, component, internal } from "./world.ts";
-export type { World, Component, Id, Query, QueryOpts, ComponentTuple, WorldInternal } from "./world.ts";
+export type { World, Component, Id, Query, QueryOpts, ComponentTuple, WorldInternal, SpawnFactory } from "./world.ts";
 
 /** Canonical position component used by `@f0rbit/forge/pixi` sprite + anim sync systems. */
 export const pos_c: Component<{ x: number; y: number }> = component<{ x: number; y: number }>("pos");
 
 export { schedule } from "./schedule.ts";
-export type { Schedule, Stage, System, Ctx } from "./schedule.ts";
+export type { Schedule, Stage, System, Ctx, PeriodicOpts } from "./schedule.ts";
 
 export { time } from "./time.ts";
 export type { Time } from "./time.ts";
