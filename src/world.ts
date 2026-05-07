@@ -80,7 +80,21 @@ export type WorldInternal = {
 
 export type World = {
 	spawn: (...components: SpawnArgs) => Id;
-	spawn_many: (count: number, factory: SpawnFactory) => readonly Id[];
+	/**
+	 * Bulk-spawns entities. Two forms:
+	 *
+	 * - `spawn_many(count, factory)` — calls `factory(i)` for `i` in `[0, count)`.
+	 *   Best for repetitive cases where every entity has the same component shape.
+	 * - `spawn_many(specs)` — spawns one entity per element of the spec array.
+	 *   Best when you already have an array of inputs (no need to switch on `i`),
+	 *   or when entities have differing component shapes.
+	 *
+	 * Both forms return ids in spawn order.
+	 */
+	spawn_many: {
+		(count: number, factory: SpawnFactory): readonly Id[];
+		(specs: readonly SpawnArgs[]): readonly Id[];
+	};
 	despawn: (id: Id) => Result<void, EngineError>;
 	/**
 	 * Bulk-despawns every entity that has ALL of the given marker components.
@@ -159,16 +173,27 @@ export const world = (): World => {
 		if ((id as unknown as number) >= next_id) next_id = (id as unknown as number) + 1;
 	};
 
-	const spawn_many = (count: number, factory: SpawnFactory): readonly Id[] => {
+	function spawn_many(count: number, factory: SpawnFactory): readonly Id[];
+	function spawn_many(specs: readonly SpawnArgs[]): readonly Id[];
+	function spawn_many(arg0: number | readonly SpawnArgs[], factory?: SpawnFactory): readonly Id[] {
+		if (Array.isArray(arg0)) {
+			const specs = arg0;
+			const ids: Id[] = new Array(specs.length);
+			for (let i = 0; i < specs.length; i++) {
+				ids[i] = spawn(...(specs[i] as SpawnArgs));
+			}
+			return ids;
+		}
+		const count = arg0 as number;
 		if (!Number.isFinite(count) || count < 0 || !Number.isInteger(count)) {
 			throw new Error(`[forge] world.spawn_many: 'count' must be a non-negative integer, got ${count}`); // non-deterministic-ok: programmer-error guard
 		}
 		const ids: Id[] = new Array(count);
 		for (let i = 0; i < count; i++) {
-			ids[i] = spawn(...factory(i));
+			ids[i] = spawn(...(factory as SpawnFactory)(i));
 		}
 		return ids;
-	};
+	}
 
 	const despawn = (id: Id): Result<void, EngineError> => {
 		if (!entities.has(id)) return err({ kind: "entity_not_found", id });

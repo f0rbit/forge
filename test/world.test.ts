@@ -173,6 +173,64 @@ describe("world", () => {
 			const w = world();
 			expect(() => w.spawn_many(2.5, () => [[pos, { x: 0, y: 0 }]] as const)).toThrow(/non-negative integer/);
 		});
+
+		describe("array overload", () => {
+			test("spawns N entities matching the array length and returns Id[]", () => {
+				const w = world();
+				const ids = w.spawn_many([
+					[[pos, { x: 1, y: 2 }]],
+					[[pos, { x: 3, y: 4 }]],
+					[[pos, { x: 5, y: 6 }]],
+				]);
+				expect(ids).toHaveLength(3);
+				expect(w.count()).toBe(3);
+				expect(ids[0]).toBeLessThan(ids[1]!);
+				expect(ids[1]).toBeLessThan(ids[2]!);
+			});
+
+			test("each entity has the components specified at its index", () => {
+				const w = world();
+				const ids = w.spawn_many([
+					[[pos, { x: 10, y: 20 }], [vel, { dx: 1, dy: 0 }]],
+					[[pos, { x: 30, y: 40 }], [vel, { dx: 0, dy: 1 }]],
+				]);
+				const p0 = w.get(ids[0]!, pos);
+				const v0 = w.get(ids[0]!, vel);
+				const p1 = w.get(ids[1]!, pos);
+				const v1 = w.get(ids[1]!, vel);
+				expect(p0.ok && p0.value).toEqual({ x: 10, y: 20 });
+				expect(v0.ok && v0.value).toEqual({ dx: 1, dy: 0 });
+				expect(p1.ok && p1.value).toEqual({ x: 30, y: 40 });
+				expect(v1.ok && v1.value).toEqual({ dx: 0, dy: 1 });
+			});
+
+			test("empty array returns empty Id[] and spawns nothing", () => {
+				const w = world();
+				const ids = w.spawn_many([]);
+				expect(ids).toEqual([]);
+				expect(w.count()).toBe(0);
+			});
+
+			test("mixed-component-shape entities work in one call", () => {
+				const w = world();
+				const player_c = component<true>("player");
+				const enemy_c = component<true>("enemy");
+				const ids = w.spawn_many([
+					[[pos, { x: 0, y: 0 }], [player_c, true]],
+					[[pos, { x: 5, y: 5 }], [enemy_c, true], [vel, { dx: 1, dy: 1 }]],
+					[[tag, true]],
+				]);
+				expect(ids).toHaveLength(3);
+				expect(w.has(ids[0]!, player_c)).toBe(true);
+				expect(w.has(ids[0]!, enemy_c)).toBe(false);
+				expect(w.has(ids[0]!, vel)).toBe(false);
+				expect(w.has(ids[1]!, enemy_c)).toBe(true);
+				expect(w.has(ids[1]!, vel)).toBe(true);
+				expect(w.has(ids[1]!, player_c)).toBe(false);
+				expect(w.has(ids[2]!, tag)).toBe(true);
+				expect(w.has(ids[2]!, pos)).toBe(false);
+			});
+		});
 	});
 
 	describe("despawn_marked", () => {
