@@ -10,7 +10,7 @@ import {
 	world,
 	type Snapshot,
 } from "../../src/index.ts";
-import { atlas_registry, anim_c, anim_events } from "../../src/anim.ts";
+import { atlas_registry_r, anim_c, anim_events_r } from "../../src/anim.ts";
 
 const pos = component<{ x: number; y: number }>("pos");
 const vel = component<{ dx: number; dy: number }>("vel");
@@ -169,10 +169,10 @@ describe("snapshot — kernel components/resources", () => {
 		expect(taken.value.entities[0]?.components["anim"]).toBeDefined();
 	});
 
-	test("atlas_registry resource is NOT snapshotted by default (runtime asset metadata)", () => {
+	test("atlas_registry_r resource is NOT snapshotted by default (runtime asset metadata)", () => {
 		const w = world();
 		const res = resources();
-		res.set(atlas_registry, { p: { idle: [{ frame: "p_0", ticks: 1 }] } });
+		res.set(atlas_registry_r, { p: { idle: [{ frame: "p_0", ticks: 1 }] } });
 		const s = snapshotter().register(anim_c);
 		const taken = s.take(w, { time: time(), rng: rng(0), res });
 		expect(taken.ok).toBe(true);
@@ -180,10 +180,10 @@ describe("snapshot — kernel components/resources", () => {
 		expect(Object.keys(taken.value.resources)).not.toContain("forge.anim.atlas_registry");
 	});
 
-	test("anim_events resource is NOT snapshotted by default (transient per-tick)", () => {
+	test("anim_events_r resource is NOT snapshotted by default (transient per-tick)", () => {
 		const w = world();
 		const res = resources();
-		res.set(anim_events, { events: [{ kind: "looped", id: 1 as never, sequence: "idle", tick: 5 }] });
+		res.set(anim_events_r, { events: [{ kind: "looped", id: 1 as never, sequence: "idle", tick: 5 }] });
 		const s = snapshotter();
 		const taken = s.take(w, { time: time(), rng: rng(0), res });
 		expect(taken.ok).toBe(true);

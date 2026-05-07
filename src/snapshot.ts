@@ -157,7 +157,7 @@ const restore = (
 			}
 			tuples.push([entry.component, decoded.data] as const);
 		}
-		w.spawn_at(ent.id as Id, ...(tuples as unknown as readonly (readonly [Component<any>, any])[]));
+		wi.spawn_at(ent.id as Id, ...(tuples as unknown as readonly (readonly [Component<any>, any])[]));
 	}
 
 	for (const [name, data] of Object.entries(snap.resources)) {

@@ -11,7 +11,7 @@ const PAD_DPAD_DOWN = 13;
 const PAD_DPAD_LEFT = 14;
 const PAD_DPAD_RIGHT = 15;
 
-const movement2d: Bindings = {
+const movement_2d: Bindings = {
 	digital: {},
 	axes: {
 		"move.x": [
@@ -30,7 +30,7 @@ const movement2d: Bindings = {
 	deadzone: 0.15,
 };
 
-const movement_4way_digital: Bindings = {
+const movement_4way: Bindings = {
 	digital: {
 		"move.left": [
 			{ kind: "key", code: "ArrowLeft" },
@@ -57,7 +57,7 @@ const movement_4way_digital: Bindings = {
 	deadzone: 0,
 };
 
-const movement8way: Bindings = {
+const movement_8way: Bindings = {
 	digital: {
 		"move.left": [
 			{ kind: "key", code: "ArrowLeft" },
@@ -85,8 +85,8 @@ const movement8way: Bindings = {
 		],
 	},
 	axes: {
-		"move.x": movement2d.axes["move.x"]!,
-		"move.y": movement2d.axes["move.y"]!,
+		"move.x": movement_2d.axes["move.x"]!,
+		"move.y": movement_2d.axes["move.y"]!,
 	},
 	deadzone: 0.15,
 };
@@ -164,9 +164,9 @@ const menu: Bindings = {
 };
 
 export const presets = {
-	movement2d,
-	movement_4way_digital,
-	movement8way,
+	movement_2d,
+	movement_4way,
+	movement_8way,
 	platformer,
 	twinstick,
 	menu,

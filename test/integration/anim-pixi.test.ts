@@ -11,7 +11,7 @@ import {
 	palette_noop,
 	anim,
 	anim_c,
-	atlas_registry,
+	atlas_registry_r,
 	type Ctx,
 	type AtlasRegistry,
 } from "../../src/index.ts";
@@ -55,7 +55,7 @@ describe("anim-pixi integration", () => {
 		const reg_r = a.register_atlas("hero", sheet);
 		expect(reg_r.ok).toBe(true);
 
-		res.set(atlas_registry, a.registry() as AtlasRegistry);
+		res.set(atlas_registry_r, a.registry() as AtlasRegistry);
 
 		const ctx: Ctx = {
 			time: t,
@@ -112,7 +112,7 @@ describe("anim-pixi integration", () => {
 		const res = resources();
 
 		const a = assets({ fixed_dt: t.fixed_dt, register_default: true });
-		res.set(atlas_registry, a.registry() as AtlasRegistry);
+		res.set(atlas_registry_r, a.registry() as AtlasRegistry);
 
 		const ctx: Ctx = {
 			time: t,

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { world, schedule, time, rng, resources, input, debug, palette, atlas_registry, pos_c, type Ctx } from "../../src/index.ts";
+import { world, schedule, time, rng, resources, input, debug, palette, atlas_registry_r, pos_c, type Ctx } from "../../src/index.ts";
 import { Container } from "pixi.js";
 import { assets, browser_source, camera, sprite_c, sprite_sync_system, anim_sync_system, debug_pixi, palette_pixi } from "../../src/pixi/index.ts";
 import { sprite_node_for } from "../../src/pixi/sprite.ts";
@@ -18,7 +18,7 @@ describe("boot-equivalent smoke test", () => {
 		const pal = palette();
 
 		const a = assets({ fixed_dt: t.fixed_dt, register_default: true });
-		res.set(atlas_registry, a.registry());
+		res.set(atlas_registry_r, a.registry());
 
 		const cam = camera({ design: { width: 320, height: 180 }, mode: "letterbox" });
 		cam.resize(640, 360);
@@ -70,7 +70,7 @@ describe("boot-equivalent smoke test", () => {
 		const r = rng(1);
 		const res = resources();
 		const a = assets({ fixed_dt: t.fixed_dt, register_default: true });
-		res.set(atlas_registry, a.registry());
+		res.set(atlas_registry_r, a.registry());
 
 		const world_container = new Container();
 		const ctx: Ctx = {

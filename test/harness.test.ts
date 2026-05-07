@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { harness, component } from "../src/index.ts";
+import { harness, component, internal } from "../src/index.ts";
 import { presets } from "../src/presets/index.ts";
 
 describe("harness", () => {
@@ -35,7 +35,7 @@ describe("harness", () => {
 	});
 
 	test("custom opts apply", () => {
-		const h = harness({ seed: 42, fixed_dt: 1 / 30, bindings: presets.movement2d });
+		const h = harness({ seed: 42, fixed_dt: 1 / 30, bindings: presets.movement_2d });
 		expect(h.time.fixed_dt).toBeCloseTo(1 / 30);
 		expect(h.rng.seed).toBe(42);
 		expect(h.input.bindings().axes["move.x"]).toBeDefined();
@@ -74,7 +74,7 @@ describe("harness", () => {
 		const id = dev.world.spawn([c, { x: 1 }]);
 		dev.debug.line({ x: 0, y: 0 }, { x: 1, y: 1 });
 		expect(dev.debug.frame().length).toBe(1);
-		prod.world.spawn_at(id, [c, { x: 1 }]);
+		prod.world[internal].spawn_at(id, [c, { x: 1 }]);
 		prod.debug.line({ x: 0, y: 0 }, { x: 1, y: 1 });
 		expect(prod.debug.frame().length).toBe(0);
 	});

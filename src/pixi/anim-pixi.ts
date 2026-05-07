@@ -8,7 +8,7 @@ import type { Spritesheet, Texture } from "pixi.js";
 import type { System } from "../schedule.ts";
 import { anim_c } from "../anim.ts";
 import { sprite_c, sprite_node_for } from "./sprite.ts";
-import { atlas_registry } from "../anim.ts";
+import { atlas_registry_r } from "../anim.ts";
 import type { Assets_ } from "./assets.ts";
 import { DEFAULT_ATLAS } from "./assets.ts";
 
@@ -28,7 +28,7 @@ export const anim_sync_system = (opts: AnimPixiOpts): System => {
 	const warned_frame = new Set<string>();
 
 	return (w, ctx) => {
-		const reg_r = ctx.res.get(atlas_registry);
+		const reg_r = ctx.res.get(atlas_registry_r);
 		const registry = reg_r.ok ? reg_r.value : undefined;
 
 		for (const [id, anim_data, _sd] of w.query([anim_c, sprite_c] as const)) {

@@ -12,7 +12,7 @@ import type { Debug } from "../debug/debug.ts";
 import type { Palette } from "../palette/palette.ts";
 import type { EngineStore } from "../storage/engine-store.ts";
 import type { AtlasRegistry } from "../anim.ts";
-import { atlas_registry } from "../anim.ts";
+import { atlas_registry_r } from "../anim.ts";
 import { input as make_input } from "../input/input.ts";
 import { time as make_time } from "../time.ts";
 import { rng as make_rng } from "../rng.ts";
@@ -157,10 +157,10 @@ export const boot = async (opts: BootOpts): Promise<Result<App, BootError>> => {
 	const render = render_r.value;
 
 	const a = assets({ fixed_dt: t.fixed_dt, register_default: true });
-	if (!res.has(atlas_registry)) {
-		res.set(atlas_registry, a.registry() as AtlasRegistry);
+	if (!res.has(atlas_registry_r)) {
+		res.set(atlas_registry_r, a.registry() as AtlasRegistry);
 	} else {
-		const cur = res.get(atlas_registry);
+		const cur = res.get(atlas_registry_r);
 		if (cur.ok) {
 			const merged = cur.value;
 			for (const [alias, seqs] of Object.entries(a.registry())) {
@@ -177,7 +177,7 @@ export const boot = async (opts: BootOpts): Promise<Result<App, BootError>> => {
 				return err({ kind: "asset_failed", alias: spec.alias, cause: result.error });
 			}
 		}
-		const cur = res.get(atlas_registry);
+		const cur = res.get(atlas_registry_r);
 		if (cur.ok) {
 			for (const [alias, seqs] of Object.entries(a.registry())) {
 				cur.value[alias] = seqs;

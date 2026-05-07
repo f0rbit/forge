@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { BufferImageSource, Container, Spritesheet, Texture } from "pixi.js";
-import { world, time, rng, resources, input, debug_noop, palette_noop, atlas_registry, anim_c, type Ctx } from "../../src/index.ts";
+import { world, time, rng, resources, input, debug_noop, palette_noop, atlas_registry_r, anim_c, type Ctx } from "../../src/index.ts";
 import { component } from "../../src/world.ts";
 import { assets, sprite_c, sprite_sync_system, anim_sync_system } from "../../src/pixi/index.ts";
 import { sprite_node_for } from "../../src/pixi/sprite.ts";
@@ -45,7 +45,7 @@ describe("anim_sync_system", () => {
 		const a = assets({ register_default: false, fixed_dt: ctx.time.fixed_dt });
 		const sheet = make_sheet();
 		a.register_atlas("hero", sheet);
-		ctx.res.set(atlas_registry, a.registry());
+		ctx.res.set(atlas_registry_r, a.registry());
 
 		const root = new Container();
 		const sprite_sys = sprite_sync_system({ assets: a, world_container: root, pos_component: pos });
@@ -66,7 +66,7 @@ describe("anim_sync_system", () => {
 		const w = world();
 		const ctx = make_ctx();
 		const a = assets({ register_default: true, fixed_dt: ctx.time.fixed_dt });
-		ctx.res.set(atlas_registry, a.registry());
+		ctx.res.set(atlas_registry_r, a.registry());
 
 		const root = new Container();
 		const sprite_sys = sprite_sync_system({ assets: a, world_container: root, pos_component: pos });
@@ -87,7 +87,7 @@ describe("anim_sync_system", () => {
 		const a = assets({ register_default: false, fixed_dt: ctx.time.fixed_dt });
 		const sheet = make_sheet();
 		a.register_atlas("hero", sheet);
-		ctx.res.set(atlas_registry, a.registry());
+		ctx.res.set(atlas_registry_r, a.registry());
 
 		const root = new Container();
 		const sprite_sys = sprite_sync_system({ assets: a, world_container: root, pos_component: pos });

@@ -62,7 +62,7 @@ describe("replay record/save/load round-trip", () => {
 	});
 
 	test("axis changes recorded only when value changes", () => {
-		const i = input(presets.movement2d);
+		const i = input(presets.movement_2d);
 		let tick = 0;
 		const rec = replay.record(i, { seed: 1, fixed_dt: 1 / 60, get_tick: () => tick });
 

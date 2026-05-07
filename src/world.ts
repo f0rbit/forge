@@ -70,11 +70,16 @@ export type WorldInternal = {
 	components_of: (id: Id) => readonly Component<any>[];
 	stores: () => ReadonlyMap<symbol, ReadonlyMap<Id, unknown>>;
 	clear: () => void;
+	/**
+	 * Spawns an entity with a specific id. Used by `snapshot.restore` to
+	 * preserve ids across snapshot round-trips. Not part of the public surface
+	 * — direct use risks id collisions with `world.spawn`.
+	 */
+	spawn_at: (id: Id, ...components: SpawnArgs) => void;
 };
 
 export type World = {
 	spawn: (...components: SpawnArgs) => Id;
-	spawn_at: (id: Id, ...components: SpawnArgs) => void;
 	spawn_many: (count: number, factory: SpawnFactory) => readonly Id[];
 	despawn: (id: Id) => Result<void, EngineError>;
 	/**
@@ -314,7 +319,6 @@ export const world = (): World => {
 
 	return {
 		spawn,
-		spawn_at,
 		spawn_many,
 		despawn,
 		despawn_marked,
@@ -338,6 +342,7 @@ export const world = (): World => {
 			},
 			stores: () => stores as unknown as ReadonlyMap<symbol, ReadonlyMap<Id, unknown>>,
 			clear,
+			spawn_at,
 		},
 	};
 };

@@ -20,7 +20,7 @@ export type { Rng } from "./rng.ts";
 export { resources, resource } from "./resources.ts";
 export type { Resources, ResKey } from "./resources.ts";
 
-export { anim, anim_c, atlas_registry, anim_events } from "./anim.ts";
+export { anim, anim_c, atlas_registry_r, anim_events_r } from "./anim.ts";
 export type { Anim, AnimData, AnimEvent, AnimEventBuffer, AtlasFrame, AtlasRegistry, AtlasSequences } from "./anim.ts";
 
 export { input, noop_source, scripted, ticked, empty_bindings, merge_bindings } from "./input/index.ts";

@@ -6,18 +6,18 @@ describe("presets — keys exist", () => {
 	test("all six presets exposed", () => {
 		expect(Object.keys(presets).sort()).toEqual([
 			"menu",
-			"movement2d",
-			"movement8way",
-			"movement_4way_digital",
+			"movement_2d",
+			"movement_4way",
+			"movement_8way",
 			"platformer",
 			"twinstick",
 		]);
 	});
 });
 
-describe("presets.movement_4way_digital", () => {
+describe("presets.movement_4way", () => {
 	test("WASD drives digital actions", () => {
-		const i = input(presets.movement_4way_digital);
+		const i = input(presets.movement_4way);
 		i.pump([{ kind: "key.down", code: "KeyW", pad: null, t: 0 }]);
 		expect(i.pressed("move.up")).toBe(true);
 		expect(i.pressed("move.down")).toBe(false);
@@ -29,25 +29,25 @@ describe("presets.movement_4way_digital", () => {
 	});
 
 	test("arrow keys drive digital actions", () => {
-		const i = input(presets.movement_4way_digital);
+		const i = input(presets.movement_4way);
 		i.pump([{ kind: "key.down", code: "ArrowLeft", pad: null, t: 0 }]);
 		expect(i.pressed("move.left")).toBe(true);
 	});
 
 	test("no axes configured", () => {
-		expect(Object.keys(presets.movement_4way_digital.axes)).toEqual([]);
+		expect(Object.keys(presets.movement_4way.axes)).toEqual([]);
 	});
 
 	test("digital-only edges (just_pressed semantics)", () => {
-		const i = input(presets.movement_4way_digital);
+		const i = input(presets.movement_4way);
 		i.pump([{ kind: "key.down", code: "ArrowUp", pad: null, t: 0 }]);
 		expect(i.just("move.up")).toBe(true);
 	});
 });
 
-describe("presets.movement2d", () => {
+describe("presets.movement_2d", () => {
 	test("WASD drives move.x / move.y", () => {
-		const i = input(presets.movement2d);
+		const i = input(presets.movement_2d);
 		i.pump([{ kind: "key.down", code: "KeyD", pad: null, t: 0 }]);
 		expect(i.axis("move.x")).toBe(1);
 		i.pump([
@@ -60,13 +60,13 @@ describe("presets.movement2d", () => {
 	});
 
 	test("arrow keys drive move.x", () => {
-		const i = input(presets.movement2d);
+		const i = input(presets.movement_2d);
 		i.pump([{ kind: "key.down", code: "ArrowRight", pad: null, t: 0 }]);
 		expect(i.axis("move.x")).toBe(1);
 	});
 
 	test("left stick drives move.x analog", () => {
-		const i = input(presets.movement2d);
+		const i = input(presets.movement_2d);
 		i.pump([{ kind: "pad.axis", axis: 0, value: 0.75, pad: 0, t: 0 }]);
 		expect(i.axis("move.x")).toBeCloseTo(0.75, 5);
 	});
@@ -110,16 +110,16 @@ describe("presets.twinstick", () => {
 	});
 });
 
-describe("presets.movement8way", () => {
+describe("presets.movement_8way", () => {
 	test("digital actions for cardinal directions", () => {
-		const i = input(presets.movement8way);
+		const i = input(presets.movement_8way);
 		i.pump([{ kind: "key.down", code: "KeyW", pad: null, t: 0 }]);
 		expect(i.pressed("move.up")).toBe(true);
 		expect(i.pressed("move.down")).toBe(false);
 	});
 
 	test("axes also exposed for code that wants analog", () => {
-		const i = input(presets.movement8way);
+		const i = input(presets.movement_8way);
 		i.pump([{ kind: "key.down", code: "KeyD", pad: null, t: 0 }]);
 		expect(i.axis("move.x")).toBe(1);
 	});

@@ -6,8 +6,8 @@ import {
 	resources,
 	anim,
 	anim_c,
-	atlas_registry,
-	anim_events,
+	atlas_registry_r,
+	anim_events_r,
 	type AtlasRegistry,
 	type AnimEventBuffer,
 } from "../src/index.ts";
@@ -32,9 +32,9 @@ const make_setup = () => {
 			],
 		},
 	};
-	res.set(atlas_registry, registry);
+	res.set(atlas_registry_r, registry);
 	const buf: AnimEventBuffer = { events: [] };
-	res.set(anim_events, buf);
+	res.set(anim_events_r, buf);
 	return { w, sch, ctx, buf };
 };
 

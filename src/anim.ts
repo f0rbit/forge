@@ -8,6 +8,12 @@ export type AnimData = {
 	atlas: string;
 	sequence: string;
 	frame: number;
+	/**
+	 * @internal
+	 * Per-tick accumulator owned by `anim.advance`. Snapshot/restore preserves
+	 * it for replay determinism. Consumers should not read or write `t` directly —
+	 * use `anim.play()` / `anim.stop()` to control playback.
+	 */
 	t: number;
 	speed: number;
 	loop: boolean;
@@ -20,7 +26,7 @@ export type AtlasFrame = { frame: string; ticks: number };
 export type AtlasSequences = Record<string, readonly AtlasFrame[]>;
 export type AtlasRegistry = Record<string, AtlasSequences>;
 
-export const atlas_registry: ResKey<AtlasRegistry> = resource<AtlasRegistry>("forge.anim.atlas_registry");
+export const atlas_registry_r: ResKey<AtlasRegistry> = resource<AtlasRegistry>("forge.anim.atlas_registry");
 
 export type AnimEvent =
 	| { kind: "finished"; id: Id; sequence: string; tick: number }
@@ -28,7 +34,7 @@ export type AnimEvent =
 
 export type AnimEventBuffer = { events: AnimEvent[] };
 
-export const anim_events: ResKey<AnimEventBuffer> = resource<AnimEventBuffer>("forge.anim.events");
+export const anim_events_r: ResKey<AnimEventBuffer> = resource<AnimEventBuffer>("forge.anim.events");
 
 export type Anim = {
 	advance: System;
@@ -48,10 +54,10 @@ const lookup = (registry: AtlasRegistry | undefined, atlas: string, sequence: st
 
 export const anim = (): Anim => {
 	const advance: System = (w, ctx) => {
-		const reg_r = ctx.res.get(atlas_registry);
+		const reg_r = ctx.res.get(atlas_registry_r);
 		const registry = reg_r.ok ? reg_r.value : undefined;
 
-		const buf_r = ctx.res.get(anim_events);
+		const buf_r = ctx.res.get(anim_events_r);
 		const buf = buf_r.ok ? buf_r.value : null;
 		if (buf) buf.events.length = 0;
 
