@@ -1,5 +1,18 @@
 # @f0rbit/forge
 
+## 0.3.2
+
+### Patch Changes
+
+- Additive lighting + sprite primitives for soft FOV. Both feed game-feel polish in any grid game with vision mechanics.
+
+  - `SpriteData.alpha?: number` — sprite_sync_system applies node.alpha when set. Default = 1.0 (no change to existing consumers).
+  - `Grid.lit_area({ from, radius, is_blocking, falloff? }) → Map<key, intensity>` — parallel to `line_of_sight` but returns float intensity per cell instead of boolean visibility. Default falloff is linear `1 - distance/radius`. Consumers pass custom falloff for quadratic / smoothstep / torch-flicker / etc.
+
+  Use case: replace binary visible/hidden FOV with gradient lighting — cells closer to player brighter, distant cells dimmer, occluded cells dark. Wires through SpriteData.alpha.
+
+  Zero breaking changes. Existing line_of_sight unchanged.
+
 ## 0.3.1
 
 ### Patch Changes

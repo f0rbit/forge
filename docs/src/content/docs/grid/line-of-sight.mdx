@@ -69,6 +69,26 @@ const fov_system: System = (w) => {
 };
 ```
 
+## Soft FOV — `g.lit_area`
+
+When you want gradient lighting instead of binary visible/hidden, reach for `g.lit_area`. Same LOS test, but returns a `Map<key, intensity>` with a float in `[0, 1]` per visible cell.
+
+```ts
+const lit = g.lit_area({
+  from: { x: 5, y: 4 },
+  radius: 6,
+  is_blocking: (c) => blocked.has(g.key(c.x, c.y)),
+});
+
+for (const [k, intensity] of lit) {
+  // wire intensity → SpriteData.alpha for soft falloff
+}
+```
+
+`LightOpts.falloff` defaults to linear `1 - distance/radius`. Pass a custom function for quadratic, smoothstep, torch flicker, etc. Output is clamped to `[0, 1]`. The origin cell is always `1.0`. Cells beyond the radius or behind blockers are absent from the map (= dark).
+
+Pair with `SpriteData.alpha` on `sprite_c` to drive a soft FOV without touching tint or visibility.
+
 ## Sprite-toggle gotcha
 
 If you're flipping `sprite_c.visible` on hundreds of tiles per FOV update, do a **delta** against the previous visible set — only set sprites whose visibility actually changed this tick. The full sweep allocates per-cell. See the [Cookbook](/forge/cookbook/) for the pattern.

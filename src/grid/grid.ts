@@ -18,6 +18,13 @@ export type FovOpts = {
 	include_origin?: boolean;
 };
 
+export type LightOpts = {
+	from: Cell;
+	radius: number;
+	is_blocking: (cell: Cell) => boolean;
+	falloff?: (distance: number, max: number) => number;
+};
+
 export type TileMoveOpts<P extends { x: number; y: number } = { x: number; y: number }> = {
 	blocked_by: (cell: Cell) => boolean;
 	slide?: boolean;
@@ -45,6 +52,7 @@ export type Grid = {
 	neighbors8: (x: number, y: number) => readonly Cell[];
 	line: (a: Cell, b: Cell) => Generator<Cell>;
 	line_of_sight: (opts: FovOpts) => ReadonlySet<number>;
+	lit_area: (opts: LightOpts) => Map<number, number>;
 	move_tile: <P extends { x: number; y: number } = { x: number; y: number }>(
 		w: World,
 		id: Id,
@@ -107,6 +115,19 @@ export const grid = (opts: GridOpts): Grid => {
 	const neighbors4 = (x: number, y: number): readonly Cell[] => N4.map(([dx, dy]) => ({ x: x + dx, y: y + dy }));
 	const neighbors8 = (x: number, y: number): readonly Cell[] => N8.map(([dx, dy]) => ({ x: x + dx, y: y + dy }));
 
+	const has_los = (from: Cell, target: Cell, is_blocking: (cell: Cell) => boolean): boolean => {
+		let first = true;
+		for (const step of line_gen(from, target)) {
+			if (first) {
+				first = false;
+				continue;
+			}
+			if (step.x === target.x && step.y === target.y) break;
+			if (is_blocking(step)) return false;
+		}
+		return true;
+	};
+
 	const line_of_sight = (fov: FovOpts): ReadonlySet<number> => {
 		const { from, radius, is_blocking } = fov;
 		const include_origin = fov.include_origin ?? true;
@@ -122,21 +143,38 @@ export const grid = (opts: GridOpts): Grid => {
 				if (!in_bounds(tx, ty)) continue;
 				const target: Cell = { x: tx, y: ty };
 				if (chebyshev(from, target) > radius) continue;
+				if (has_los(from, target, is_blocking)) out.add(key(tx, ty));
+			}
+		}
+		return out;
+	};
 
-				let blocked = false;
-				let first = true;
-				for (const step of line_gen(from, target)) {
-					if (first) {
-						first = false;
-						continue;
-					}
-					if (step.x === target.x && step.y === target.y) break;
-					if (is_blocking(step)) {
-						blocked = true;
-						break;
-					}
-				}
-				if (!blocked) out.add(key(tx, ty));
+	const default_falloff = (distance: number, max: number): number => {
+		if (max <= 0) return distance === 0 ? 1 : 0;
+		return 1 - distance / max;
+	};
+
+	const clamp01 = (n: number): number => (n < 0 ? 0 : n > 1 ? 1 : n);
+
+	const lit_area = (opts: LightOpts): Map<number, number> => {
+		const { from, radius, is_blocking } = opts;
+		const falloff = opts.falloff ?? default_falloff;
+		const out = new Map<number, number>();
+		if (!in_bounds(from.x, from.y)) return out;
+		out.set(key(from.x, from.y), 1);
+
+		for (let dy = -radius; dy <= radius; dy++) {
+			for (let dx = -radius; dx <= radius; dx++) {
+				if (dx === 0 && dy === 0) continue;
+				const tx = from.x + dx;
+				const ty = from.y + dy;
+				if (!in_bounds(tx, ty)) continue;
+				const target: Cell = { x: tx, y: ty };
+				const dist = chebyshev(from, target);
+				if (dist > radius) continue;
+				if (!has_los(from, target, is_blocking)) continue;
+				const intensity = clamp01(falloff(dist, radius));
+				out.set(key(tx, ty), intensity);
 			}
 		}
 		return out;
@@ -206,6 +244,7 @@ export const grid = (opts: GridOpts): Grid => {
 		neighbors8,
 		line: line_gen,
 		line_of_sight,
+		lit_area,
 		move_tile,
 	};
 };

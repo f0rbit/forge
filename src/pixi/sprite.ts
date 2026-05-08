@@ -13,6 +13,7 @@ export type SpriteData = {
 	visible?: boolean;
 	z?: number;
 	scale?: { x: number; y: number };
+	alpha?: number;
 };
 
 export const sprite_c: Component<SpriteData> = component<SpriteData>("sprite");
@@ -72,6 +73,7 @@ export const sprite_sync_system = (opts: SpriteSystemOpts): System => {
 			if (sd.anchor) node.anchor.set(sd.anchor.x, sd.anchor.y);
 			if (sd.tint !== undefined) node.tint = sd.tint;
 			if (sd.scale) node.scale.set(sd.scale.x, sd.scale.y);
+			if (sd.alpha !== undefined) node.alpha = sd.alpha;
 			node.visible = sd.visible ?? true;
 			node.position.set(pos.x, pos.y);
 			if (sd.z !== undefined) node.zIndex = sd.z;

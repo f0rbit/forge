@@ -114,6 +114,49 @@ describe("sprite_sync_system", () => {
 		expect(b_node!.scale.y).toBe(1);
 	});
 
+	test("applies alpha when set; leaves node at default 1.0 when omitted", () => {
+		const w = world();
+		const ctx = make_ctx();
+		const a = assets({ register_default: false });
+		const root = new Container();
+		const sys = sprite_sync_system({ assets: a, world_container: root, pos_component: pos });
+
+		const dimmed = w.spawn(
+			[pos, { x: 0, y: 0 }],
+			[sprite_c, { texture: "x", alpha: 0.4 }],
+		);
+		const plain = w.spawn(
+			[pos, { x: 0, y: 0 }],
+			[sprite_c, { texture: "x" }],
+		);
+		sys(w, ctx);
+		const a_node = sprite_node_for(w, dimmed);
+		expect(a_node!.alpha).toBe(0.4);
+		const b_node = sprite_node_for(w, plain);
+		expect(b_node!.alpha).toBe(1);
+	});
+
+	test("alpha changes between frames update the node", () => {
+		const w = world();
+		const ctx = make_ctx();
+		const a = assets({ register_default: false });
+		const root = new Container();
+		const sys = sprite_sync_system({ assets: a, world_container: root, pos_component: pos });
+
+		const id = w.spawn(
+			[pos, { x: 0, y: 0 }],
+			[sprite_c, { texture: "x", alpha: 1 }],
+		);
+		sys(w, ctx);
+		const before = sprite_node_for(w, id);
+		expect(before!.alpha).toBe(1);
+
+		sprite.set(w, id, { alpha: 0.25 });
+		sys(w, ctx);
+		const after = sprite_node_for(w, id);
+		expect(after!.alpha).toBe(0.25);
+	});
+
 	test("scale changes between frames update the node", () => {
 		const w = world();
 		const ctx = make_ctx();
