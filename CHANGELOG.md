@@ -1,5 +1,24 @@
 # @f0rbit/forge
 
+## 0.3.3
+
+### Patch Changes
+
+- Add `follow_c` + `follow_system` — entity-follow primitive every game with HUD elements, attached weapons, child sprites, or indicator visuals will want.
+
+  ```ts
+  import { follow_c, type Follow } from "@f0rbit/forge";
+
+  // Spawn a health bar that tracks an enemy 16px above
+  const bar_id = world.spawn(
+    [pos_c, { x: 0, y: 0 }],
+    [follow_c, { target: enemy_id, offset: { x: 0, y: -16 } }]
+    // ... sprite + bar contents
+  );
+  ```
+
+  `follow_system` registered automatically in the post stage by `boot()`. Updates follower's pos to target's pos + offset every tick. Silently skips if target was despawned. Zero overhead when no entities have `follow_c`.
+
 ## 0.3.2
 
 ### Patch Changes

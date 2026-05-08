@@ -102,6 +102,15 @@ export const sections: SubpathSection[] = [
 				],
 			},
 			{
+				name: "Follow",
+				description: "Parent-child primitive — follower's pos = target.pos + offset every tick.",
+				exports: [
+					{ name: "follow_c", kind: "constant", signature: "Component<Follow>", description: "Per-entity follow component — `{ target, offset }`. Spawn alongside `pos_c` to attach an entity's position to another entity's position with an x/y offset." },
+					{ name: "follow_system", kind: "factory", signature: "(pos_component: Component<{ x, y }>) => System", description: "System that writes `target.pos + offset` back into each follower's pos every tick. Wired into `boot()` post-stage automatically; pass `opts.pos` to override the position component (defaults to `pos_c`). Silently skips followers whose target was despawned." },
+					{ name: "Follow", kind: "type", signature: "{ target: Id; offset: { x: number; y: number } }", description: "Follow component data — id of the entity to track and a fixed x/y world-space offset." },
+				],
+			},
+			{
 				name: "Input",
 				description: "Action-based input layer with bindings, sources, and rebinding.",
 				exports: [

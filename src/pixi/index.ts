@@ -3,6 +3,7 @@ import type { Application } from "pixi.js";
 import type { Bindings } from "../input/bindings.ts";
 import type { World, Component } from "../world.ts";
 import { pos_c } from "../index.ts";
+import { follow_system } from "../follow.ts";
 import type { Schedule, Ctx } from "../schedule.ts";
 import type { Time } from "../time.ts";
 import type { Rng } from "../rng.ts";
@@ -206,6 +207,7 @@ export const boot = async (opts: BootOpts): Promise<Result<App, BootError>> => {
 	});
 
 	const pos = opts.pos ?? pos_c;
+	sch.add("post", follow_system(pos), "forge.follow");
 	sch.add("post", sprite_sync_system({ assets: a, world_container: render.world, pos_component: pos }), "forge.sprite_sync");
 	sch.add("post", anim_sync_system({ assets: a }), "forge.anim_sync");
 	sch.add("render", dbg_sys, "forge.debug_pixi");

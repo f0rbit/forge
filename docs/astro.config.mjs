@@ -41,6 +41,7 @@ export default defineConfig({
 						{ label: "RNG",        slug: "core/rng" },
 						{ label: "Resources",  slug: "core/resources" },
 						{ label: "Ctx",        slug: "core/ctx" },
+						{ label: "Follow",     slug: "core/follow" },
 					],
 				},
 				{

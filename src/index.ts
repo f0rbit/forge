@@ -23,6 +23,9 @@ export type { Resources, ResKey } from "./resources.ts";
 export { anim, anim_c, atlas_registry_r, anim_events_r } from "./anim.ts";
 export type { Anim, AnimData, AnimEvent, AnimEventBuffer, AtlasFrame, AtlasRegistry, AtlasSequences } from "./anim.ts";
 
+export { follow_c, follow_system } from "./follow.ts";
+export type { Follow } from "./follow.ts";
+
 export { input, noop_source, scripted, ticked, empty_bindings, merge_bindings } from "./input/index.ts";
 export type {
 	Input,

@@ -1,0 +1,60 @@
+---
+title: Follow
+description: Attach an entity's position to another entity's position with an x/y offset.
+---
+
+`follow_c` + `follow_system` is the parent-child primitive. Every game with a HUD element pinned to a player, an attached weapon, a particle emitter, or an indicator sprite (a quest marker, an aim cursor, a damage number) wants this pattern.
+
+```ts
+import { world, pos_c, follow_c, follow_system, type Follow } from "@f0rbit/forge";
+
+const w = world();
+
+const enemy = w.spawn([pos_c, { x: 200, y: 100 }]);
+
+// Health bar tracks the enemy 16px above its sprite
+const bar = w.spawn(
+  [pos_c, { x: 0, y: 0 }],
+  [follow_c, { target: enemy, offset: { x: 0, y: -16 } }],
+);
+
+// Each tick, follow_system writes target.pos + offset back into bar's pos_c.
+```
+
+## API
+
+```ts
+type Follow = { target: Id; offset: { x: number; y: number } };
+
+const follow_c: Component<Follow>;
+
+const follow_system: (pos_component: Component<{ x: number; y: number }>) => System;
+```
+
+The `follow_system` factory takes the position component to read/write. Pass `pos_c` for the canonical forge position, or pass your own component if your game owns a custom (e.g. smoothed `visual_pos`) component.
+
+## Boot wiring
+
+`boot()` registers `follow_system(opts.pos ?? pos_c)` in the `post` stage automatically, just before `sprite_sync_system`. No setup needed — spawn entities with `follow_c` and they'll track their target every tick.
+
+If you don't use `follow_c` on any entity, the system is a no-op (the query matches zero entities).
+
+## Despawn handling
+
+If a follower's target is despawned, `follow_system` silently skips that follower — its position is left as-is. No error, no warning. Pair with `world.despawn` on the follower itself if you want it to disappear with its target.
+
+## Order of execution
+
+`follow_system` runs once per tick. Chained follows (A follows B follows C) get one hop per tick unless the entities happen to be inserted in target-first order — A only sees B's _previous-tick_ position, because B itself hasn't been updated yet when A runs.
+
+If you need transitive chains to resolve in a single tick, sort followers topologically yourself (target-before-follower) before calling the system, or run multiple passes. The default is intentional: O(n) per tick, no graph traversal, no hidden cost.
+
+## Use cases
+
+- HUD bars (health, mana, stamina) pinned above a unit
+- Attached weapons or shields that ride a character's anchor point
+- Particle emitters parented to moving entities
+- Off-screen indicator sprites (quest markers) clamped to a target's projected position
+- Aim cursors offset from the player
+
+For anything more complex (rotation, scale inheritance, full transform hierarchy), build a heavier `transform_c` system on top — `follow_c` deliberately stays at "position + offset".
