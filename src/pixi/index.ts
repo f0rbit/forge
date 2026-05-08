@@ -217,8 +217,7 @@ export const boot = async (opts: BootOpts): Promise<Result<App, BootError>> => {
 	let last_real_t = 0;
 
 	const tick = (real_dt: number): void => {
-		t.advance(real_dt);
-		sch.tick(w, ctx_obj);
+		t.advance(real_dt, () => sch.tick(w, ctx_obj));
 	};
 
 	const loop = (now: number): void => {

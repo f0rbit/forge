@@ -4,7 +4,7 @@ export type Time = {
 	readonly elapsed: number;
 	readonly alpha: number;
 	scale: number;
-	advance: (real_dt: number) => number;
+	advance: (real_dt: number, each?: () => void) => number;
 	restore: (tick: number) => void;
 };
 
@@ -26,13 +26,14 @@ export const time = (opts?: { fixed_dt?: number }): Time => {
 			return state.alpha;
 		},
 		scale: 1,
-		advance: real_dt => {
+		advance: (real_dt, each) => {
 			state.accumulator += real_dt * api.scale;
 			let consumed = 0;
 			while (state.accumulator >= fixed_dt) {
 				state.accumulator -= fixed_dt;
 				state.tick += 1;
 				consumed += 1;
+				if (each) each();
 			}
 			state.alpha = state.accumulator / fixed_dt;
 			return consumed;

@@ -1,5 +1,19 @@
 # @f0rbit/forge
 
+## 0.3.1
+
+### Patch Changes
+
+- Fix tick/schedule lockstep — periodic systems were firing erratically (extra fires on fast frames, skipped fires on slow frames) because the pixi render loop called `schedule.tick` exactly once per RAF callback regardless of how many simulation ticks `time.advance` consumed.
+
+  Manifests as "movement too fast/erratic" in any game using `schedule.add(stage, sys, { every: N })` for periodic systems. Confirmed in both `dungeon-walk` and `bestiary`.
+
+  **Fix**: `time.advance(real_dt, each?)` accepts an optional callback fired once per consumed tick. The pixi render loop wires the callback to `schedule.tick` so simulation runs exactly once per consumed simulation tick.
+
+  **Added regression test**: `test/integration/lockstep.test.ts` — runs 600 frames with jittered real_dt and asserts a periodic system fires exactly the expected count.
+
+  No consumer code changes needed (additive callback parameter). Subsystems will see correct movement timing on next `bun install`.
+
 ## 0.3.0
 
 ### Minor Changes
