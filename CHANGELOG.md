@@ -1,5 +1,43 @@
 # @f0rbit/forge
 
+## 0.4.0
+
+### Minor Changes
+
+- Add `@f0rbit/forge/light` — unified grid-illumination subpath. Promoted from echo's `bestiary` and `dungeon-walk` subsystems after the 2-consumer threshold was met and the API stabilised across several debugging rounds.
+
+  ```ts
+  import {
+    make_light_system,
+    make_light_update_system,
+    make_eye_follow_system,
+    make_light_follow_system,
+    make_marker_light_follow_system,
+    presets,
+    candle_flicker,
+    fluorescent_flicker,
+    sine_flicker,
+    torch_flicker,
+    type LightSystem,
+    type LightSpec,
+    type LightHandle,
+    type LightSystemConfig,
+    type EyeLightConfig,
+    type FlickerProfile,
+    type ScenePreset,
+  } from "@f0rbit/forge/light";
+  ```
+
+  - Per-light additive RGB grid accumulator written to a `BufferImageSource`, blended via a Pixi `Filter` with WebGL + WebGPU shader paths.
+  - Deterministic flicker profiles (`torch`, `candle`, `fluorescent`, `sine`) — pure functions of `(seed, t)`.
+  - Six built-in scene presets (`moon_cavern`, `warm_torch`, `frostbite`, `lab`, `sunset`, `hellscape`).
+  - Three convenience follow systems for binding lights to entities (eye-follow, id-follow, marker-follow).
+  - `pixi.js` peer dep already declared as optional `^8` — no new peer dep.
+
+  Internally placed under `src/pixi/light/` because the system depends directly on pixi runtime classes (`Filter`, `BufferImageSource`, `GlProgram`, `GpuProgram`, `UniformGroup`); the `./light` URL alias in `exports` keeps the consumer-facing path tidy.
+
+  No breaking changes elsewhere.
+
 ## 0.3.3
 
 ### Patch Changes

@@ -34,4 +34,5 @@ export default defineConfig([
   entry("storage/index", "src/storage/index.ts"),
   entry("presets/index", "src/presets/index.ts"),
   entry("grid/index", "src/grid/index.ts"),
+  entry("pixi/light/index", "src/pixi/light/index.ts"),
 ]);
