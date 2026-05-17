@@ -1,5 +1,25 @@
 # @f0rbit/forge
 
+## 0.4.2
+
+### Patch Changes
+
+- Add ergonomic coord-transform helpers to `@f0rbit/forge/pixi`:
+
+  ```ts
+  import { coord_transform, event_to_world, type CoordTransform } from "@f0rbit/forge/pixi";
+
+  const ct = coord_transform(app.camera);
+  // ct.scale, ct.offset, ct.view, ct.canvas_to_world(x,y), ct.world_to_canvas(x,y)
+
+  canvas.addEventListener("pointerdown", (e) => {
+    const world = event_to_world(e, canvas, app.camera);
+    const cell = { x: Math.floor(world.x / tile), y: Math.floor(world.y / tile) };
+  });
+  ```
+
+  `event_to_world(e, canvas, cam)` solves the recurring "I have a DOM `PointerEvent`, give me a world cell" use case consumers kept reinventing. It handles `getBoundingClientRect` translation and CSS-pixel-to-canvas-buffer DPR scaling, then delegates to the existing `cam.screen_to_world` (which round-trips). Additive surface; existing `camera.screen_to_world` / `world_to_screen` unchanged.
+
 ## 0.4.0
 
 ### Minor Changes

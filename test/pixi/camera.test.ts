@@ -191,6 +191,23 @@ describe("camera world_to_screen / screen_to_world", () => {
 	});
 });
 
+describe("camera per-cell roundtrip", () => {
+	test("per-cell roundtrip across viewport (extend, pixel_perfect)", () => {
+		const cam = camera({ design: { width: 480, height: 320 }, mode: "extend", min: { width: 480, height: 320 }, pixel_perfect: true });
+		cam.resize(1368, 1045);
+		const tile = 16;
+		for (let cy = 0; cy < 20; cy++) {
+			for (let cx = 0; cx < 30; cx++) {
+				const world = { x: cx * tile + tile / 2, y: cy * tile + tile / 2 };
+				const screen = cam.world_to_screen(world);
+				const back = cam.screen_to_world(screen);
+				expect(Math.floor(back.x / tile)).toBe(cx);
+				expect(Math.floor(back.y / tile)).toBe(cy);
+			}
+		}
+	});
+});
+
 describe("camera viewport()", () => {
 	test("returns initial viewport before resize", () => {
 		const c = camera({ design: { width: 320, height: 240 }, mode: "letterbox" });

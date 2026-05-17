@@ -26,6 +26,7 @@ import { schedule as make_schedule } from "../schedule.ts";
 import { assets, type AssetError, type Assets_, type AssetsOpts, type AssetKind, type LoadValue } from "./assets.ts";
 import { browser_source, type BrowserSource, type BrowserSourceOpts } from "./input-browser.ts";
 import { camera, type Camera, type CameraOpts, type CameraMode, type Viewport } from "./camera.ts";
+import { coord_transform, event_to_world, type CoordTransform } from "./coords.ts";
 import { make_render, type RenderState, type RenderError, type RenderOpts } from "./render.ts";
 import { sprite, sprite_c, sprite_sync_system, type SpriteData, type SpriteSystemOpts } from "./sprite.ts";
 import { anim_sync_system, type AnimPixiOpts } from "./anim-pixi.ts";
@@ -36,6 +37,8 @@ export {
 	assets,
 	browser_source,
 	camera,
+	coord_transform,
+	event_to_world,
 	make_render,
 	sprite,
 	sprite_c,
@@ -56,6 +59,7 @@ export type {
 	Camera,
 	CameraOpts,
 	CameraMode,
+	CoordTransform,
 	Viewport,
 	RenderState,
 	RenderError,
