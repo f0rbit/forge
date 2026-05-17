@@ -1,8 +1,99 @@
 import { describe, expect, test } from "bun:test";
-import { Container, RenderTexture, Sprite } from "pixi.js";
+import { Container, DOMAdapter, RenderTexture, Sprite } from "pixi.js";
 import { world, time, rng, resources, input, palette_noop, debug, type Ctx } from "../../src/index.ts";
 import type { System } from "../../src/schedule.ts";
-import { camera, type Camera } from "../../src/pixi/index.ts";
+import { camera, make_render, type Camera } from "../../src/pixi/index.ts";
+
+const make_lost_gl = (): WebGLRenderingContext => ({
+	isContextLost: () => true,
+	getExtension: () => null,
+	getParameter: () => 0,
+	getShaderPrecisionFormat: () => ({ precision: 23, rangeMin: 127, rangeMax: 127 }),
+}) as unknown as WebGLRenderingContext;
+
+const make_fake_2d = (): CanvasRenderingContext2D => ({
+	imageSmoothingEnabled: true,
+	webkitImageSmoothingEnabled: true,
+	canvas: null,
+	save: () => {},
+	restore: () => {},
+	setTransform: () => {},
+	resetTransform: () => {},
+	clearRect: () => {},
+	fillRect: () => {},
+	scale: () => {},
+	translate: () => {},
+	drawImage: () => {},
+	getImageData: () => ({ data: new Uint8ClampedArray(4), width: 1, height: 1 }),
+	putImageData: () => {},
+	beginPath: () => {},
+	closePath: () => {},
+	fill: () => {},
+	stroke: () => {},
+}) as unknown as CanvasRenderingContext2D;
+
+const make_fake_canvas = () => ({
+	width: 0,
+	height: 0,
+	getContext: (kind: string) => {
+		if (kind === "webgl" || kind === "webgl2") return make_lost_gl();
+		if (kind === "2d") return make_fake_2d();
+		return null;
+	},
+	addEventListener: () => {},
+	removeEventListener: () => {},
+});
+
+const make_fake_element = () => {
+	const el: Record<string, unknown> = {
+		style: {},
+		tagName: "DIV",
+		children: [],
+		appendChild: (c: unknown) => c,
+		removeChild: (c: unknown) => c,
+		setAttribute: () => {},
+		removeAttribute: () => {},
+		addEventListener: () => {},
+		removeEventListener: () => {},
+		focus: () => {},
+		blur: () => {},
+		click: () => {},
+		getBoundingClientRect: () => ({ x: 0, y: 0, width: 0, height: 0, top: 0, left: 0, right: 0, bottom: 0 }),
+	};
+	return el;
+};
+
+const g = globalThis as { document?: unknown; requestAnimationFrame?: unknown; cancelAnimationFrame?: unknown; matchMedia?: unknown };
+if (!g.document) {
+	g.document = {
+		createElement: () => make_fake_element(),
+		createElementNS: () => make_fake_element(),
+		body: make_fake_element(),
+		documentElement: make_fake_element(),
+		addEventListener: () => {},
+		removeEventListener: () => {},
+	};
+}
+if (!g.requestAnimationFrame) g.requestAnimationFrame = (_cb: (t: number) => void) => 0;
+if (!g.cancelAnimationFrame) g.cancelAnimationFrame = () => {};
+if (!g.matchMedia) g.matchMedia = () => ({ matches: false, addEventListener: () => {}, removeEventListener: () => {} });
+
+DOMAdapter.set({
+	createCanvas: (w?: number, h?: number) => {
+		const c = make_fake_canvas();
+		c.width = w ?? 0;
+		c.height = h ?? 0;
+		return c as unknown as HTMLCanvasElement;
+	},
+	createImage: () => ({}) as unknown as HTMLImageElement,
+	getCanvasRenderingContext2D: () => CanvasRenderingContext2D,
+	getWebGLRenderingContext: () => (globalThis as unknown as { WebGLRenderingContext: typeof WebGLRenderingContext }).WebGLRenderingContext ?? (class {} as unknown as typeof WebGLRenderingContext),
+	getNavigator: () => ({ userAgent: "node", gpu: null }),
+	getBaseUrl: () => "http://localhost/",
+	getFontFaceSet: () => null,
+	fetch: (url, options) => fetch(url as RequestInfo, options),
+	parseXML: () => ({}) as unknown as Document,
+});
 
 type FakeRenderer = {
 	render: (opts: { container: Container; target?: RenderTexture }) => void;
@@ -150,5 +241,49 @@ describe("render system two-stage flow", () => {
 		surface_sprite.position.set(cam.viewport().offset.x, cam.viewport().offset.y);
 		expect(surface_sprite.scale.x).toBe(3);
 		expect(surface_sprite.position.x).toBe(0);
+	});
+});
+
+const find_surface_sprite = (stage: Container): Sprite | null => {
+	for (const child of stage.children) {
+		if ((child as { label?: string }).label === "forge.surface") return child as Sprite;
+	}
+	return null;
+};
+
+describe("set_screen_offset", () => {
+	test("neutral position equals viewport offset; offsets stack on top; (0,0) restores neutral; resize preserves screen-offset", async () => {
+		const cam = camera({ design: { width: 100, height: 100 }, mode: "letterbox", pixel_perfect: false });
+		cam.resize(200, 200);
+		const result = await make_render({ camera: cam });
+		if (!result.ok) {
+			throw new Error(`make_render failed: ${JSON.stringify(result.error)}`);
+		}
+		const render = result.value;
+
+		const sprite = find_surface_sprite(render.app.stage);
+		expect(sprite).not.toBeNull();
+		if (!sprite) return;
+
+		const vp0 = cam.viewport();
+		expect(sprite.position.x).toBe(vp0.offset.x);
+		expect(sprite.position.y).toBe(vp0.offset.y);
+
+		render.set_screen_offset(5, -3);
+		expect(sprite.position.x).toBe(vp0.offset.x + 5);
+		expect(sprite.position.y).toBe(vp0.offset.y - 3);
+
+		render.set_screen_offset(0, 0);
+		expect(sprite.position.x).toBe(vp0.offset.x);
+		expect(sprite.position.y).toBe(vp0.offset.y);
+
+		render.set_screen_offset(5, -3);
+		render.resize(400, 300);
+		const vp1 = cam.viewport();
+		expect(vp1.offset.x).not.toBe(vp0.offset.x);
+		expect(sprite.position.x).toBe(vp1.offset.x + 5);
+		expect(sprite.position.y).toBe(vp1.offset.y - 3);
+
+		render.dispose();
 	});
 });

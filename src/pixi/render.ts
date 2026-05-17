@@ -18,6 +18,7 @@ export type RenderState = {
 	render_system: () => System;
 	resize: (w: number, h: number) => void;
 	viewport: () => Viewport;
+	set_screen_offset: (dx: number, dy: number) => void;
 };
 
 export type RenderOpts = {
@@ -136,6 +137,9 @@ export const make_render = async (opts: RenderOpts): Promise<Result<RenderState,
 		stats.fps = fps_smoothed;
 	};
 
+	let current_dx = 0;
+	let current_dy = 0;
+
 	const apply_viewport = (vp: Viewport): void => {
 		const need_w = Math.max(1, vp.view.width);
 		const need_h = Math.max(1, vp.view.height);
@@ -144,7 +148,7 @@ export const make_render = async (opts: RenderOpts): Promise<Result<RenderState,
 			apply_smoothing(render_texture as unknown as { source?: { scaleMode?: string } }, smoothing);
 		}
 		surface_sprite.scale.set(vp.scale, vp.scale);
-		surface_sprite.position.set(vp.offset.x, vp.offset.y);
+		surface_sprite.position.set(vp.offset.x + current_dx, vp.offset.y + current_dy);
 	};
 
 	apply_viewport(initial);
@@ -162,6 +166,12 @@ export const make_render = async (opts: RenderOpts): Promise<Result<RenderState,
 			const vp = cam.resize(w, h);
 			(app.renderer as unknown as { resize?: (w: number, h: number) => void }).resize?.(w, h);
 			apply_viewport(vp);
+		},
+		set_screen_offset: (dx, dy) => {
+			current_dx = dx;
+			current_dy = dy;
+			const vp = cam.viewport();
+			surface_sprite.position.set(vp.offset.x + dx, vp.offset.y + dy);
 		},
 		dispose: () => {
 			try {
