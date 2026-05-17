@@ -1,0 +1,42 @@
+---
+title: Render pipeline
+description: forge uses a two-stage RenderTexture pipeline — what that means for filters, overlays, and coord transforms.
+---
+
+## The container hierarchy
+
+```
+Pixi Application
+└── app.stage                          [pixel-space root]
+    ├── surface_sprite (Sprite)        [scale = viewport.scale, pos = viewport.offset]
+    │   ↑ texture = render_texture
+    │
+    ├── render.debug_overlay (Container)   [CANVAS pixel space — bypasses world filters]
+    └── render.palette_overlay (Container) [CANVAS pixel space]
+
+Offscreen, NOT a child of stage:
+app.render.world (Container)           [DESIGN/VIEW pixel space; no transform]
+    └── (sprites positioned by cell_to_world)
+```
+
+Each frame:
+1. forge calls `renderer.render({ container: world, target: render_texture })` — renders the world container offscreen into a texture.
+2. `app.render()` flushes the stage — composites `surface_sprite` (with the texture) + overlays. The surface_sprite holds the fit-scale, so the world content gets visually scaled at this step.
+
+## Implications
+
+### Filters on `world` cover everything inside it
+
+Attach a Pixi `Filter` to `app.render.world` and it processes every sprite inside before the texture is composited. This is how echo's lighting works: `app.render.world.filters = [light_filter]`. The filter sees a design-resolution input texture and a design-resolution output.
+
+### Overlays bypass world filters
+
+Use `app.render.debug_overlay` for anything that should render at full brightness regardless of lighting — HUD, click markers, debug labels. Children render in canvas pixel space (no design-scaling), so position them with raw screen coords (or with `app.camera.world_to_screen(...)` if you have a world-space anchor).
+
+### `world.toLocal()` returns identity
+
+Because `world` has no transform and no parent path to stage, `worldTransform` is identity. `toLocal(canvas_pt)` returns `canvas_pt` unchanged. Don't use it for canvas→world conversions — see [Coordinate systems](/forge/concepts/coords/).
+
+### Resize
+
+`app.render.resize(w, h)` recomputes the viewport (scale + offset + view) via `camera.resize`, resizes the renderer, regenerates the render_texture at the new view size, and repositions surface_sprite. Consumers don't need to touch the world container — its design-space content stays the same; only the composite-step scale changes.

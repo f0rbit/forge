@@ -31,6 +31,13 @@ export default defineConfig({
 			sidebar: [
 				{ label: "Quick Start", slug: "quick-start" },
 				{
+					label: "Concepts",
+					items: [
+						{ label: "Render pipeline",    slug: "concepts/render-pipeline" },
+						{ label: "Coordinate systems", slug: "concepts/coords" },
+					],
+				},
+				{
 					label: "Core Concepts",
 					items: [
 						{ label: "World",      slug: "core/world" },

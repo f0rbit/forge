@@ -1,0 +1,75 @@
+---
+title: Coordinate systems
+description: Canvas, world, and cell coords — and the helpers to convert between them.
+---
+
+forge uses three coordinate spaces. Always be explicit about which you're in.
+
+## The three spaces
+
+| Space | Unit | Origin | Used by |
+|---|---|---|---|
+| **Cell** | integer cells | (0, 0) top-left of grid | ECS components, game logic, `g.line_of_sight`, `g.move_tile` |
+| **World** | design pixels | (0, 0) top-left of design viewport | Sprite positions (`pos_c`), Pixi rendering inside `app.render.world` |
+| **Canvas** | screen pixels | (0, 0) top-left of canvas buffer | DOM pointer events (`clientX/Y` after rect-translate), `gl.readPixels` |
+
+## Converting between them
+
+### Cell ↔ World
+
+```ts
+import { g } from "./grid.ts";
+const world_pos = g.cell_to_world(cx, cy);   // returns cell CENTER: { cx*tile + tile/2, cy*tile + tile/2 }
+const cell = g.world_to_cell(world_x, world_y);  // floor-based, works for any point in the cell
+```
+
+`cell_to_world` returns the **center** of the cell, not the top-left. Sprites with `anchor: { x: 0.5, y: 0.5 }` render correctly at this position with no additional offset.
+
+### Canvas ↔ World
+
+```ts
+import { event_to_world, coord_transform } from "@f0rbit/forge/pixi";
+
+// From a DOM PointerEvent (handles getBoundingClientRect + CSS-pixel→canvas-buffer DPR scaling)
+const world = event_to_world(e, canvas, app.camera);
+
+// From raw canvas coords
+const world = app.camera.screen_to_world({ x: canvas_x, y: canvas_y });
+
+// Inverse
+const canvas = app.camera.world_to_screen({ x: world_x, y: world_y });
+
+// Snapshot of the current transform
+const t = coord_transform(app.camera);
+// → { scale, offset, view, canvas_to_world, world_to_canvas }
+```
+
+## Common pitfalls
+
+### "Why is `container.toLocal()` returning canvas coords unchanged?"
+
+forge uses a [two-stage RenderTexture pipeline](/forge/concepts/render-pipeline/). `app.render.world` lives in design-pixel space and is rendered offscreen; the fit-to-canvas scale lives on the `surface_sprite` on `app.stage`. `app.render.world.worldTransform` is identity. **Use `app.camera.screen_to_world` instead** — it reads from the camera's viewport, which always has the correct scale + offset.
+
+### "Why do my click coords land in the wrong cell?"
+
+Three common causes:
+1. You're computing `fit_scale = Math.min(canvas.w / world.w, canvas.h / world.h)` manually — wrong for `pixel_perfect: true` cameras (which floor the scale to an integer) and wrong for `extend` mode (where the viewport extends beyond design dimensions). Use `app.camera.screen_to_world` instead.
+2. You're adding `+ g.tile / 2` to coords retrieved from `pos_c` — `pos_c` is already cell-center; the addition double-shifts.
+3. You're using CSS pixels (`e.clientX - rect.left`) instead of canvas-buffer pixels — `event_to_world` does the conversion automatically.
+
+### "Sprite anchor + cell position confusion"
+
+`pos_c` for a cell-aligned entity is `g.cell_to_world(cx, cy)` = cell CENTER. With `anchor: { x: 0.5, y: 0.5 }`, the sprite renders centered on the cell. **Both halves of this convention are required to be consistent** — change one without the other and sprites shift by half a tile.
+
+## Roundtrip guarantee
+
+```ts
+const cell = { x: 5, y: 3 };
+const world = g.cell_to_world(cell.x, cell.y);
+const canvas = app.camera.world_to_screen(world);
+const back_world = app.camera.screen_to_world(canvas);
+const back_cell = g.world_to_cell(back_world.x, back_world.y);
+// → { x: 5, y: 3 }  ✓
+```
+
+Tested in `test/pixi/coords.test.ts` and `test/pixi/camera.test.ts` (per-cell roundtrip across full viewport).

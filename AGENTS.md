@@ -62,3 +62,35 @@ Docs live in `docs/` as a private Astro Starlight workspace, modelled on `~/dev/
 - Local dev: `bun run docs:dev` (preview at `localhost:4321/forge/`); `bun run docs:build` from the repo root surfaces broken sidebar slugs and link errors.
 - Deploy: `.github/workflows/docs.yml` builds and publishes to `https://f0rbit.github.io/forge/` on push to `main` (or via `workflow_dispatch`). The library-build step is intentionally absent — the docs site pulls `@f0rbit/ui` from npm, not from `..`.
 - The docs workspace is excluded from the published npm tarball (see `package.json` `files`).
+
+## Rendering architecture
+
+forge uses a **two-stage RenderTexture pipeline**, not a transformed container tree. Important consequence: `app.render.world.worldTransform` is identity even though the visible world is scaled-and-centered on the canvas. Don't try to invert the scale via `Container.toLocal()` — it'll return canvas coords unchanged.
+
+```
+Pixi Application
+└── app.stage                          [no transform; pixel-space root]
+    ├── surface_sprite (Sprite)        [scale = viewport.scale, pos = viewport.offset]
+    │   ↑ texture = render_texture
+    │
+    ├── render.debug_overlay (Container)   [no transform; CANVAS pixel space — bypasses world filters]
+    └── render.palette_overlay (Container) [no transform; CANVAS pixel space]
+
+Offscreen, NOT a child of stage:
+app.render.world (Container)           [no transform; DESIGN/VIEW pixel space]
+    └── (sprites at cell_to_world coords)
+```
+
+See [Concepts → Coordinate systems](./docs/concepts/coords/) for the canonical canvas↔world↔cell helpers (`event_to_world`, `screen_to_world`, `cell_to_world`, etc.). **Never reimplement fit-scale math.**
+
+## Pixi v8 gotchas
+
+Patterns that have repeatedly tripped up forge contributors and consumers. Bake these in — they don't surface as errors, they surface as silent visual failures.
+
+1. **Array uniforms**: use `{ type: 'vec4<f32>', size: N, value: array }`, NOT `{ type: 'array<vec4<f32>, N>', value: array }`. The latter throws at filter construction in Pixi v8.
+2. **Float texture filtering**: `rgba32float` + `scaleMode: "linear"` silently returns `vec4(0)` on Chrome/Edge WebGL2 (no `OES_texture_float_linear`). Use `rgba8unorm` with a CPU-side scale factor, OR `rgba16float`. Pixi sets `gl.LINEAR` unconditionally without extension check.
+3. **Sprite anchor for tile-aligned entities**: `g.cell_to_world(cx, cy)` returns cell CENTER. Sprites with `anchor: { x: 0.5, y: 0.5 }` at this position render correctly with NO additional offset. Don't add `+ tile/2`.
+4. **Container `worldTransform`** is lazy. Calling `container.worldTransform` outside the render loop may return stale identity values. For coord transforms, use `app.camera.screen_to_world` (it reads from `viewport()`, which is always up-to-date). Avoid `container.toLocal()` for canvas→world conversions — see "Rendering architecture" above.
+5. **Sprite z-order across stages**: if some sprites get `sprite_c` at startup (e.g. autotile) and others at post (e.g. `sprite_attach_system`), default insertion order is unstable. Set explicit `sprite_c.z` (with `sortableChildren = true` on the parent) for any layer whose ordering matters.
+6. **`BufferImageSource` `scaleMode`**: set `addressModeU/V: "clamp-to-edge"` for grid textures or you'll get seam-wrap artifacts at world boundaries.
+7. **Custom Filter uniforms shared between vertex + fragment** must be declared `highp` explicitly in fragment GLSL ES 3.0 — default precision is mediump and Pixi v8 will silently fail to link the program.
