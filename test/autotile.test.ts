@@ -1,0 +1,84 @@
+import { describe, expect, test } from "bun:test";
+import { component, pos_c, world, type Component } from "../src/index.ts";
+import { grid } from "../src/grid/index.ts";
+import { sprite_c } from "../src/pixi/index.ts";
+import {
+	apply_wall_autotile,
+	compute_corner_states,
+	LOOKUP,
+} from "../src/autotile/index.ts";
+import expected_map from "./fixtures/pattern-to-tile.json";
+
+type Bit = 0 | 1;
+
+const wall_c: Component<true> = component<true>("wall");
+const g = grid({ cols: 30, rows: 20, tile: 16 });
+
+const offsets = [
+	{ dx: 0, dy: -1 },   // 0  N
+	{ dx: 1, dy: -1 },   // 1  NE
+	{ dx: 1, dy: 0 },    // 2  E
+	{ dx: 1, dy: 1 },    // 3  SE
+	{ dx: 0, dy: 1 },    // 4  S
+	{ dx: -1, dy: 1 },   // 5  SW
+	{ dx: -1, dy: 0 },   // 6  W
+	{ dx: -1, dy: -1 },  // 7  NW
+] as const;
+
+const neighbors_for_mask = (mask: number, cx: number, cy: number): ReadonlyArray<{ x: number; y: number }> =>
+	offsets
+		.map((o, i) => ({ o, on: (mask >> i) & 1 }))
+		.filter(e => e.on === 1)
+		.map(e => ({ x: cx + e.o.dx, y: cy + e.o.dy }));
+
+const spawn_wall = (w: ReturnType<typeof world>, cx: number, cy: number): ReturnType<typeof w.spawn> => {
+	const center = g.cell_to_world(cx, cy);
+	return w.spawn([pos_c, center], [wall_c, true]);
+};
+
+describe("wall autotile (Godot 3x3 minimal, corner-based)", () => {
+	test("LOOKUP matches committed fixture (47 entries)", () => {
+		const fixture = expected_map as Record<string, { col: number; row: number }>;
+		expect(Object.keys(LOOKUP).length).toBe(47);
+		expect(Object.keys(fixture).length).toBe(47);
+		for (const [k, v] of Object.entries(fixture)) {
+			expect(LOOKUP[k as keyof typeof LOOKUP]).toEqual(v);
+		}
+	});
+
+	test("every 8-neighborhood pattern (256) maps to a known tile", () => {
+		const cx = 5;
+		const cy = 5;
+		const seen_tiles = new Set<string>();
+		for (let mask = 0; mask < 256; mask++) {
+			const w = world();
+			const query_id = spawn_wall(w, cx, cy);
+			for (const n of neighbors_for_mask(mask, cx, cy)) spawn_wall(w, n.x, n.y);
+
+			apply_wall_autotile(w, { wall_c, grid: g, texture: "walls" });
+			const sprite = w.get(query_id, sprite_c);
+			expect(sprite.ok).toBe(true);
+			if (!sprite.ok) continue;
+			const frame = sprite.value.frame;
+			expect(frame).toBeDefined();
+			expect(frame!).toMatch(/^wat_\d+_\d+$/);
+			seen_tiles.add(frame!);
+		}
+		expect(seen_tiles.size).toBe(47);
+	});
+
+	test("compute_corner_states classifies corners using A+B+diagonal", () => {
+		const empty: Bit[][] = [[0, 0, 0], [0, 1, 0], [0, 0, 0]];
+		const at = (g: Bit[][]) => (x: number, y: number) => g[y + 1]?.[x + 1] === 1;
+		const s_iso = compute_corner_states(0, 0, at(empty));
+		expect(s_iso).toEqual({ tl: 0, tr: 0, bl: 0, br: 0 });
+
+		const full: Bit[][] = [[1, 1, 1], [1, 1, 1], [1, 1, 1]];
+		const s_full = compute_corner_states(0, 0, at(full));
+		expect(s_full).toEqual({ tl: 4, tr: 4, bl: 4, br: 4 });
+
+		const nw: Bit[][] = [[0, 1, 0], [1, 1, 0], [0, 0, 0]];
+		const s_nw = compute_corner_states(0, 0, at(nw));
+		expect(s_nw).toEqual({ tl: 3, tr: 1, bl: 2, br: 0 });
+	});
+});

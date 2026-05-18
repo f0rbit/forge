@@ -35,4 +35,5 @@ export default defineConfig([
   entry("presets/index", "src/presets/index.ts"),
   entry("grid/index", "src/grid/index.ts"),
   entry("pixi/light/index", "src/pixi/light/index.ts"),
+  entry("autotile/index", "src/autotile/index.ts"),
 ]);

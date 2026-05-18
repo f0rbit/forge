@@ -1,0 +1,76 @@
+---
+title: Autotile
+description: Godot 3x3 minimal autotile (47-tile, corner-based) wired to forge ECS + pixi sprites.
+---
+
+`@f0rbit/forge/autotile` implements the **Godot 3x3 minimal** autotile rule against a tile sheet matching Godot's `autotile_template_3x3_minimal.png` layout (12 cols x 4 rows). It samples each wall cell's 8 neighbours, classifies the four corners, and writes a `sprite_c` with the correct frame name.
+
+```ts
+import { make_wall_autotile_system } from "@f0rbit/forge/autotile";
+
+schedule.add(
+  "startup",
+  make_wall_autotile_system({ wall_c, grid: g, texture: "walls" }),
+  "walls.autotile",
+);
+```
+
+## Shape
+
+```ts
+type AutotileOpts = {
+  wall_c: Component<true>;   // marker on every wall entity
+  grid: Grid;                // for pos_c → cell + bounds
+  texture: string;           // atlas alias of the loaded walls sheet
+  z?: number;                // sprite z; default 2 (above floors)
+};
+
+const make_wall_autotile_system: (opts: AutotileOpts) => System;
+const apply_wall_autotile:       (w: World, opts: AutotileOpts) => void;
+```
+
+The system iterates entities matching `[pos_c, wall_c]`, computes the corner-state key, looks up the tile coordinates in `LOOKUP`, and writes `sprite_c` with `frame = `wat_${col}_${row}``. Entities that already carry `sprite_c` are skipped — the pass is conceptually one-shot.
+
+## Corner-state model
+
+Each of the four corners (TL, TR, BL, BR) is classified from its two adjacent cardinals (A, B) and the touching diagonal (C):
+
+| State | Condition | Meaning |
+|---|---|---|
+| `OUTER` (0)   | `!A && !B`         | exposed corner |
+| `SIDE_A` (1)  | `A && !B`          | wall on the vertical orthogonal only |
+| `SIDE_B` (2)  | `!A && B`          | wall on the horizontal orthogonal only |
+| `CONCAVE` (3) | `A && B && !C`     | inner gap (T/L-joint) |
+| `FILLED` (4)  | `A && B && C`      | fully interior |
+
+## Diagonal-gating rule
+
+A diagonal neighbour only matters when **both adjacent cardinals are also walls**. This collapses the 256 raw 8-neighbour patterns onto exactly 47 unique corner-state combinations — the lookup table size. The rule is implicit in the `corner_state(a, b, c)` switch: `c` is only consulted on the `a && b` branch.
+
+## Atlas
+
+Frames must be named `wat_${col}_${row}` for `col` in `0..11` and `row` in `0..3` (48 frames; 47 of them are referenced — one slot in the Godot template is intentionally unused). Pre-cut atlases that already follow Godot's autotile template (e.g. 0x72's `atlas_walls_low-16x16.png`) work directly; otherwise re-pack to that layout.
+
+## Introspection — debug overlays
+
+```ts
+import { LOOKUP, compute_corner_states, type CornerStates } from "@f0rbit/forge/autotile";
+
+// Inspect what the algorithm thinks a cell's corners look like:
+const states: CornerStates = compute_corner_states(cx, cy, is_wall);
+
+// Walk the full 47-entry lookup table:
+for (const [key, tile] of Object.entries(LOOKUP)) {
+  // key = "tl,tr,bl,br", tile = { col, row }
+}
+```
+
+## Sprite z-order
+
+Default `z = 2`. Floors typically sit at `z = 1`; mobs / player at `z = 3`. Walls **must** render above floors because edge-piece wall frames have transparent borders that show the floor through them. Set `world.sortableChildren = true` when wiring the pixi adapter.
+
+## Notes
+
+- `pos_c` on each wall entity must be the **cell centre** in world coords (`grid.cell_to_world(cx, cy)`). `sprite_c` is written with `anchor: { x: 0.5, y: 0.5 }`.
+- Out-of-bounds cells are treated as walls (so the autotile rule terminates cleanly at the map edge — interior corners against the boundary still look right).
+- The system is deterministic and order-independent: corner classification depends only on the cell coordinates and the `wall_c`-marked occupancy set.
