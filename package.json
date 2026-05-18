@@ -1,6 +1,6 @@
 {
   "name": "@f0rbit/forge",
-  "version": "0.4.3",
+  "version": "0.5.0",
   "description": "Functional, composition-first TypeScript game engine with PIXI v8 renderer adapter, deterministic ECS, action-stream replays, and corpus-backed persistence.",
   "license": "MIT",
   "author": "Tom",
@@ -49,6 +49,10 @@
     "./light": {
       "types": "./dist/pixi/light/index.d.ts",
       "import": "./dist/pixi/light/index.js"
+    },
+    "./autotile": {
+      "types": "./dist/autotile/index.d.ts",
+      "import": "./dist/autotile/index.js"
     }
   },
   "scripts": {

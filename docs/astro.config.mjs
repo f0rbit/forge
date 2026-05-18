@@ -142,6 +142,7 @@ export default defineConfig({
 					label: "Testing",
 					items: [{ label: "Test Harness", slug: "testing/test-harness" }],
 				},
+				{ label: "Autotile",             slug: "autotile" },
 				{ label: "Determinism Contract", slug: "determinism" },
 				{ label: "Cookbook",             slug: "cookbook" },
 				{ label: "Troubleshooting",      slug: "troubleshooting" },
